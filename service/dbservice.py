@@ -1,12 +1,15 @@
 from model.exchange import Exchange
 from model.pair import Pair
+from model._sqlbase import Base
 
 from sqlalchemy import and_
 
 
 class DBService:
-    def __init__(self, session):
+    def __init__(self, engine, session):
         self.session = session
+        self.engine = engine
+        Base.metadata.create_all(engine)
 
     def getExchange(self, name: str):
         exchange = self.session.query(Exchange).filter(Exchange.name == name).first()
