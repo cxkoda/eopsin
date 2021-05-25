@@ -1,28 +1,102 @@
 from model.exchange import Exchange
 from model.pair import Pair
+from model.candle import Candle, Interval
+
 from model._sqlbase import Base
 
+from sqlalchemy.orm import sessionmaker, load_only
 from sqlalchemy import and_
+from datetime import datetime
+from typing import List, Tuple
 
 
 class DBService:
-    def __init__(self, engine, session):
-        self.session = session
+    def __init__(self, engine):
         self.engine = engine
         Base.metadata.create_all(engine)
 
-    def getExchange(self, name: str):
-        exchange = self.session.query(Exchange).filter(Exchange.name == name).first()
-        if exchange is None:
-            exchange = Exchange(name=name)
-            self.session.add(exchange)
+        Session = sessionmaker(bind=engine)
+        self.session = Session()
+
+    def addExchange(self, name: str) -> Exchange:
+        exchange = Exchange(name=name)
+        self.session.add(exchange)
+        self.session.flush()
+
         return exchange
 
-    def getPair(self, asset: str, currency: str, exchangeName: str):
-        exchange = self.getExchange(exchangeName)
-        pair = self.session.query(Pair).filter(and_(
+    def findExchange(self, name: str) -> Exchange:
+        exchange = self.session.query(Exchange).filter(Exchange.name == name).first()
+        return exchange
+
+    def getExchange(self, name: str) -> Exchange:
+        exchange = self.findExchange(name)
+        if exchange:
+            return exchange
+        else:
+            return self.addExchange(name)
+
+    def addPair(self, pair: Pair):
+        self.session.add(pair)
+        self.session.flush()
+
+    def findPair(self, asset: str, currency: str, exchangeName: str):
+        exchange = self.findExchange(exchangeName)
+        return self.session.query(Pair).filter(and_(
             Pair.asset == asset, Pair.currency == currency, Pair.exchange_id == exchange.id)).first()
+
+    def getPair(self, asset: str, currency: str, exchangeName: str):
+        pair = self.findPair(asset, currency, exchangeName)
         if pair is None:
+            exchange = self.findExchange(exchangeName)
             pair = Pair(asset=asset, currency=currency, exchange=exchange)
-            self.session.add(pair)
+            self.addPair(pair)
         return pair
+
+    def addCandle(self, candle: Candle):
+        self.session.add(candle)
+        self.session.flush()
+
+    def addCandles(self, candles: List[Candle]):
+        for candle in candles:
+            self.session.add(candle)
+        self.session.flush()
+
+    def findCandles(self, pair: Pair, interval: Interval, periodStart: datetime, periodEnd: datetime) -> List[Candle]:
+        return self.session.query(Candle) \
+            .filter(and_(Candle.pair_id == pair.id,
+                         Candle.interval == interval,
+                         Candle.openTime.between(periodStart, periodEnd))) \
+            .order_by(Candle.openTime).all()
+
+    def findMissingCandlePeriods(self, pair: Pair, interval: Interval, periodStart: datetime, periodEnd: datetime) -> \
+            List[Tuple[datetime, datetime]]:
+        candles = self.session.query(Candle) \
+            .filter(and_(Candle.pair_id == pair.id,
+                         Candle.interval == interval,
+                         Candle.openTime.between(periodStart, periodEnd))) \
+            .options(load_only('openTime')) \
+            .order_by(Candle.openTime)
+
+        opens = [candle.openTime for candle in candles]
+
+        missingPeriods = []
+        currentBegin = None
+        currentEnd = None
+
+        for idx in range(int((periodEnd - periodStart) / interval.timedelta())):
+            openTime = periodStart + idx * interval.timedelta()
+            if openTime not in opens:
+                if currentBegin is None:
+                    currentBegin = openTime
+                else:
+                    currentEnd = openTime + interval.timedelta()
+            else:
+                if currentEnd is not None:
+                    missingPeriods.append([currentBegin, currentEnd])
+                    currentBegin = currentEnd = None
+
+        if currentEnd is not None:
+            missingPeriods.append([currentBegin, currentEnd])
+
+        return missingPeriods
