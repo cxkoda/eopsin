@@ -35,9 +35,11 @@ class Interval(enum.Enum):
 
 class Candle(Base):
     __tablename__ = 'candle'
-    __table_args__ = (UniqueConstraint('pair_id', 'interval', 'openTime', name='_candle_unique'),
+    __table_args__ = (UniqueConstraint('exchange_id', 'pair_id', 'interval', 'openTime', name='_candle_unique'),
                       )
     id = Column(Integer, primary_key=True)
+    exchange_id = Column(Integer, ForeignKey('exchange.id'))
+    exchange = relationship("Exchange")
     pair_id = Column(Integer, ForeignKey('pair.id'))
     pair = relationship("Pair")
     interval = Column(Enum(Interval))

@@ -1,5 +1,6 @@
 from model.candle import Candle, Interval
 from model.pair import Pair
+from model.exchange import Exchange
 from service.dbservice import DBService
 
 import binance
@@ -9,9 +10,15 @@ from typing import List
 
 
 class BinanceService:
+    name: str
+    exchange: Exchange
+
     def __init__(self, dbService: DBService, apiKey: str, apiSecret: str):
         self.client = binance.Client(apiKey, apiSecret)
         self.session = dbService.session
+        self.dbservice = dbService
+        self.name = 'Binance'
+        self.exchange = dbService.getExchange(self.name)
 
     @staticmethod
     def getIntervalString(interval: Interval) -> str:
@@ -19,13 +26,10 @@ class BinanceService:
 
     @staticmethod
     def getPairSymbol(pair: Pair) -> str:
-        assert (pair.exchange.name == 'Binance')
         return pair.asset + pair.currency
 
-    @staticmethod
-    def getCandleFromData(pair: Pair, interval: Interval, data: list) -> Candle:
-        assert (pair.exchange.name == 'Binance')
-        candle = Candle(pair=pair, interval=interval,
+    def getCandleFromData(self, pair: Pair, interval: Interval, data: list) -> Candle:
+        candle = Candle(exchange=self.exchange, pair=pair, interval=interval,
                         openTime=datetime.datetime.fromtimestamp(data[0] / 1000),  # binance timestamps are given in ms
                         open=float(data[1]),
                         high=float(data[2]),

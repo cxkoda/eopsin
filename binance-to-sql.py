@@ -15,7 +15,7 @@ PERIOD_END = "2021-04-20 23:59:59"
 engine = create_engine("sqlite:///foo.sqlite", echo=False, future=True)
 dbService = DBService(engine)
 
-pair = dbService.getPair('BTC', 'USDT', 'Binance')
+pair = dbService.getPair('BTC', 'USDT')
 print(pair)
 
 binance = BinanceService(dbService, BINANCE_API_KEY, BINANCE_API_SECRET)

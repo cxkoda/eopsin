@@ -28,12 +28,12 @@ class TestDBService(unittest.TestCase):
 
     def test_missingCandles(self):
         binance = self.dbService.addExchange('Binance')
-        pair = self.dbService.getPair('BTC', 'USDT', 'Binance')
+        pair = self.dbService.getPair('BTC', 'USDT')
         self.dbService.addCandle(
-            Candle(pair=pair, interval=Interval.DAY_1, openTime=getDatetime('2021-01-03 00:00:00')))
+            Candle(exchange=binance, pair=pair, interval=Interval.DAY_1, openTime=getDatetime('2021-01-03 00:00:00')))
         self.dbService.addCandle(
-            Candle(pair=pair, interval=Interval.DAY_1, openTime=getDatetime('2021-01-06 00:00:00')))
-        missingPeriods = self.dbService.findMissingCandlePeriods(pair, Interval.DAY_1,
+            Candle(exchange=binance, pair=pair, interval=Interval.DAY_1, openTime=getDatetime('2021-01-06 00:00:00')))
+        missingPeriods = self.dbService.findMissingCandlePeriods(binance, pair, Interval.DAY_1,
                                                                  getDatetime('2021-01-01 00:00:00'),
                                                                  getDatetime('2021-01-10 00:00:00'))
         self.assertEqual(missingPeriods[0], [getDatetime('2021-01-01 00:00:00'), getDatetime('2021-01-03 00:00:00')])

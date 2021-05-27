@@ -40,16 +40,14 @@ class DBService:
         self.session.add(pair)
         self.session.flush()
 
-    def findPair(self, asset: str, currency: str, exchangeName: str):
-        exchange = self.findExchange(exchangeName)
+    def findPair(self, asset: str, currency: str):
         return self.session.query(Pair).filter(and_(
-            Pair.asset == asset, Pair.currency == currency, Pair.exchange_id == exchange.id)).first()
+            Pair.asset == asset, Pair.currency == currency)).first()
 
-    def getPair(self, asset: str, currency: str, exchangeName: str):
-        pair = self.findPair(asset, currency, exchangeName)
+    def getPair(self, asset: str, currency: str):
+        pair = self.findPair(asset, currency)
         if pair is None:
-            exchange = self.findExchange(exchangeName)
-            pair = Pair(asset=asset, currency=currency, exchange=exchange)
+            pair = Pair(asset=asset, currency=currency)
             self.addPair(pair)
         return pair
 
@@ -62,17 +60,21 @@ class DBService:
             self.session.add(candle)
         self.session.flush()
 
-    def findCandles(self, pair: Pair, interval: Interval, periodStart: datetime, periodEnd: datetime) -> List[Candle]:
+    def findCandles(self, exchange: Exchange, pair: Pair, interval: Interval, periodStart: datetime,
+                    periodEnd: datetime) -> List[Candle]:
         return self.session.query(Candle) \
-            .filter(and_(Candle.pair_id == pair.id,
+            .filter(and_(Candle.exchange_id == exchange.id,
+                         Candle.pair_id == pair.id,
                          Candle.interval == interval,
                          Candle.openTime.between(periodStart, periodEnd))) \
             .order_by(Candle.openTime).all()
 
-    def findMissingCandlePeriods(self, pair: Pair, interval: Interval, periodStart: datetime, periodEnd: datetime) -> \
+    def findMissingCandlePeriods(self, exchange: Exchange, pair: Pair, interval: Interval, periodStart: datetime,
+                                 periodEnd: datetime) -> \
             List[Tuple[datetime, datetime]]:
         candles = self.session.query(Candle) \
-            .filter(and_(Candle.pair_id == pair.id,
+            .filter(and_(Candle.exchange_id == exchange.id,
+                         Candle.pair_id == pair.id,
                          Candle.interval == interval,
                          Candle.openTime.between(periodStart, periodEnd))) \
             .options(load_only('openTime')) \
