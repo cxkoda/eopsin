@@ -4,19 +4,16 @@ import unittest
 from sqlalchemy import create_engine
 from service.dbservice import DBService
 from model.candle import Candle, Interval
+from sqlalchemy.exc import IntegrityError
 
 getDatetime = lambda date: datetime.datetime.strptime(date, '%Y-%m-%d %H:%M:%S')
 
 
 class TestDBService(unittest.TestCase):
 
-    def __init__(self, *args, **kwargs):
-        super(TestDBService, self).__init__(*args, **kwargs)
+    def setUp(self) -> None:
         engine = create_engine("sqlite://", echo=False, future=True)
         self.dbService = DBService(engine)
-
-    def tearDown(self):
-        self.dbService.session.rollback()
 
     def test_exchange(self):
         self.assertEqual(self.dbService.findExchange('Binance'), None, "DB should be empty")
@@ -39,6 +36,13 @@ class TestDBService(unittest.TestCase):
         self.assertEqual(missingPeriods[0], [getDatetime('2021-01-01 00:00:00'), getDatetime('2021-01-03 00:00:00')])
         self.assertEqual(missingPeriods[1], [getDatetime('2021-01-04 00:00:00'), getDatetime('2021-01-06 00:00:00')])
         self.assertEqual(missingPeriods[2], [getDatetime('2021-01-07 00:00:00'), getDatetime('2021-01-10 00:00:00')])
+
+    def test_sameExchange(self):
+        ''' Tests the behaviour for a second identical exchange entity '''
+
+        binance1 = self.dbService.addExchange('Binance')
+        with self.assertRaises(IntegrityError):
+            self.dbService.addExchange('Binance')
 
 
 if __name__ == '__main__':
