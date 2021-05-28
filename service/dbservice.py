@@ -21,7 +21,7 @@ class DBService:
     def addExchange(self, name: str) -> Exchange:
         exchange = Exchange(name=name)
         self.session.add(exchange)
-        self.session.flush()
+        self.session.commit()
 
         return exchange
 
@@ -38,7 +38,7 @@ class DBService:
 
     def addPair(self, pair: Pair):
         self.session.add(pair)
-        self.session.flush()
+        self.session.commit()
 
     def findPair(self, asset: str, currency: str):
         return self.session.query(Pair).filter(and_(
@@ -53,12 +53,12 @@ class DBService:
 
     def addCandle(self, candle: Candle):
         self.session.add(candle)
-        self.session.flush()
+        self.session.commit()
 
     def addCandles(self, candles: List[Candle]):
         for candle in candles:
             self.session.add(candle)
-        self.session.flush()
+        self.session.commit()
 
     def findCandles(self, exchange: Exchange, pair: Pair, interval: Interval, periodStart: datetime,
                     periodEnd: datetime) -> List[Candle]:
