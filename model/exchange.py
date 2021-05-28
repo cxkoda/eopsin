@@ -8,4 +8,4 @@ class Exchange(Base):
     name = Column(String, unique=True)
 
     def __repr__(self):
-        return self.name
+        return f'Exchange<id={self.id}, name={self.name}>'
