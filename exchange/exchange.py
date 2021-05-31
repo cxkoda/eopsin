@@ -12,9 +12,9 @@ class Order:
     pass
 
 
-class Exchange(ABC):
+class ExchangeHandler(ABC):
     name: str
-    dbService: DBService
+    dbservice: DBService
     exchange: model.exchange.Exchange
 
     def __init__(self, dbservice: DBService):
@@ -40,8 +40,15 @@ class Exchange(ABC):
 
     def getHistoricalKlines(self, pair: Pair, interval: Interval, periodStart: datetime, periodEnd: datetime) -> List[
         Candle]:
-        # Todo
-        pass
+        missingPeriods = self.dbservice.findMissingCandlePeriods(self.exchange, pair, interval, periodStart, periodEnd)
+        candles = self.dbservice.findCandles(self.exchange, pair, interval, periodStart, periodEnd)
+
+        if candles:
+            return candles
+        else:
+            candles = self.getHistoricalKlinesFromServer(pair, interval, periodStart, periodEnd)
+            self.dbservice.addCandles(candles)
+            return candles
 
     # Get balance for a given asset
     @abstractmethod
