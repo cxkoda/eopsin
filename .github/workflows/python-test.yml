@@ -18,5 +18,8 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
     - name: Test with unittest
+      env:
+        BINANCE_TEST_API_KEY: ${{ secrets.BINANCE_TEST_API_KEY }}
+        BINANCE_TEST_API_SECRET: ${{ secrets.BINANCE_TEST_API_SECRET }}
       run: |
         python -m unittest discover -s tests/ -p '*_test.py'
