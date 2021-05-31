@@ -6,6 +6,7 @@ from sqlalchemy import create_engine
 from service.dbservice import DBService
 from model.candle import Candle, Interval
 from exchange.binance import BinanceHandler
+from exchange.exchange import LimitOrder, MarketOrder, OrderSide
 import time
 
 getDatetime = lambda date: datetime.datetime.strptime(date, '%Y-%m-%d %H:%M:%S')
@@ -18,7 +19,7 @@ class TestBinance(unittest.TestCase):
         self.dbService = DBService(engine)
         BINANCE_API_KEY = os.environ['BINANCE_TEST_API_KEY']
         BINANCE_API_SECRET = os.environ['BINANCE_TEST_API_SECRET']
-        self.binance = BinanceHandler(self.dbService, BINANCE_API_KEY, BINANCE_API_SECRET)
+        self.binance = BinanceHandler(self.dbService, BINANCE_API_KEY, BINANCE_API_SECRET, testnet=True)
 
     def test_connection(self):
         self.binance.client.ping()
@@ -45,6 +46,22 @@ class TestBinance(unittest.TestCase):
         end = time.perf_counter()
         delta2 = end - start
         self.assertLess(delta2, 0.1 * delta1, "Fetching candles from DB should be way faster than from the exchange")
+
+    def test_portfolio(self):
+        portfolio = self.binance.getPortfolio()
+        self.assertEqual(portfolio['ETH'], self.binance.getAssetBalance('ETH'))
+
+    def test_marketOrder(self):
+        VOLUME = 1e-3
+
+        before = self.binance.getAssetBalance('BTC')
+        pair = self.dbService.getPair('BTC', 'USDT')
+        order = MarketOrder(pair, OrderSide.SELL, VOLUME)
+        orderId = self.binance.placeOrder(order)
+        after = self.binance.getAssetBalance('BTC')
+        self.assertAlmostEqual(before-after, VOLUME, 5)
+
+        self.assertEqual(self.binance.checkOrder(orderId)['status'], 'FILLED')
 
 
 if __name__ == '__main__':

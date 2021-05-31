@@ -1,9 +1,10 @@
 from model.candle import Candle, Interval
 from model.pair import Pair
 from service.dbservice import DBService
-from exchange.exchange import ExchangeHandler, Order
+from exchange.exchange import ExchangeHandler, Order, LimitOrder, OrderSide, MarketOrder, OrderId
 
 import datetime
+import numpy as np
 from typing import List
 import binance
 
@@ -11,20 +12,20 @@ import binance
 class BinanceHandler(ExchangeHandler):
     name = 'Binance'
 
-    def __init__(self, dbservice: DBService, apiKey: str, apiSecret: str):
+    def __init__(self, dbservice: DBService, apiKey: str, apiSecret: str, **kwargs):
         super().__init__(dbservice)
-        self.client = binance.Client(apiKey, apiSecret)
+        self.client = binance.Client(apiKey, apiSecret, **kwargs)
 
     def __del__(self):
         self.client.session.close()
 
-    def convertIntervalString(self, interval: Interval) -> str:
+    def _convertIntervalString(self, interval: Interval) -> str:
         return interval.value
 
-    def convertPairSymbol(self, pair: Pair) -> str:
+    def _convertPairSymbol(self, pair: Pair) -> str:
         return pair.asset + pair.currency
 
-    def convertDate(self, date: datetime) -> str:
+    def _convertDate(self, date: datetime) -> str:
         return datetime.strftime(date, '%Y-%m-%d %H:%M:%S')
 
     def getCandleFromData(self, pair: Pair, interval: Interval, data: list) -> Candle:
@@ -43,27 +44,58 @@ class BinanceHandler(ExchangeHandler):
                         )
         return candle
 
-    def getHistoricalKlinesFromServer(self, pair: Pair, interval: Interval, periodStart: datetime,
-                                      periodEnd: datetime) -> List[Candle]:
-        convertDate = lambda date: datetime.datetime.strftime(date, '%Y-%m-%d %H:%M:%S')
+    def _getHistoricalKlinesFromServer(self, pair: Pair, interval: Interval, periodStart: datetime,
+                                       periodEnd: datetime) -> List[Candle]:
+        _convertDate = lambda date: datetime.datetime.strftime(date, '%Y-%m-%d %H:%M:%S')
         candles = [self.getCandleFromData(pair, interval, candle) for candle in
-                   self.client.get_historical_klines_generator(self.convertPairSymbol(pair),
-                                                               self.convertIntervalString(interval),
-                                                               convertDate(periodStart),
-                                                               convertDate(periodEnd))]
+                   self.client.get_historical_klines_generator(self._convertPairSymbol(pair),
+                                                               self._convertIntervalString(interval),
+                                                               self._convertDate(periodStart),
+                                                               self._convertDate(periodEnd))]
         return candles
 
     def getAssetBalance(self, asset: str):
-        pass
+        info = self.client.get_asset_balance(asset=asset)
+        return float(info['free'])
 
     def getPortfolio(self):
-        pass
+        info = self.client.get_account()
+        portfolio = {entry['asset']: float(entry['free']) for entry in info['balances']}
+        return portfolio
 
     def placeOrder(self, order: Order):
+        symbol = self._convertPairSymbol(order.pair)
+        getStr = lambda flt: np.format_float_positional(flt, trim='-')
+
+        if isinstance(order, LimitOrder):
+            if order.side is OrderSide.SELL:
+                info = self.client.order_limit_sell(symbol=symbol, quantity=getStr(order.volume),
+                                                    price=getStr(order.price))
+            elif order.side is OrderSide.BUY:
+                info = self.client.order_limit_buy(symbol=symbol, quantity=getStr(order.volume),
+                                                   price=getStr(order.price))
+            else:
+                raise ValueError(f"Unknown order side: {order.side.name}")
+        elif isinstance(order, MarketOrder):
+            if order.side is OrderSide.SELL:
+                info = self.client.order_market_sell(symbol=symbol, quantity=getStr(order.volume))
+            elif order.side is OrderSide.BUY:
+                info = self.client.order_market_buy(symbol=symbol, quantity=getStr(order.volume))
+            else:
+                raise ValueError(f"Unknown order side: {order.side.name}")
+        else:
+            raise ValueError(f"Unknown order type: {type(order)}")
+
+        return OrderId(pair=order.pair, id=info['orderId'])
+
+    def checkOrder(self, orderId: OrderId):
+        return self.client.get_order(symbol=self._convertPairSymbol(orderId.pair), orderId=str(orderId.id))
+
+    def cancelOrder(self, pair: Pair, orderId):
         pass
 
-    def checkOrder(self, orderId):
-        pass
+    def getAllOrders(self, pair: Pair):
+        return self.client.get_all_orders(symbol=self._convertPairSymbol(pair))
 
-    def cancelOrder(self, orderId):
-        pass
+    def getAllOpenOrders(self, pair: Pair) -> List[Order]:
+        return self.client.get_open_orders(symbol=self._convertPairSymbol(pair))

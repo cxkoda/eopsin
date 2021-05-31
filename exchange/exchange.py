@@ -7,9 +7,51 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import List
 
+from enum import Enum, unique
+
+
+@unique
+class OrderSide(Enum):
+    BUY = 1
+    SELL = 2
+
 
 class Order:
-    pass
+    pair: Pair
+
+
+class MarketOrder(Order):
+    side: OrderSide
+    volume: float
+
+    def __init__(self, pair: Pair, side: OrderSide, volume: float):
+        self.pair = pair
+        self.side = side
+        self.volume = volume
+
+
+class LimitOrder(Order):
+    side: OrderSide
+    volume: float
+    price: float
+
+    def __init__(self, pair: Pair, side: OrderSide, volume: float, price: float):
+        self.pair = pair
+        self.side = side
+        self.volume = volume
+        self.price = price
+
+
+class OrderId:
+    pair: Pair
+    id: int
+
+    def __init__(self, pair: Pair, id: int):
+        self.pair = pair
+        self.id = id
+
+    def __repr__(self):
+        return f'<OrderId(pair={self.pair}, id={self.id}>'
 
 
 class ExchangeHandler(ABC):
@@ -22,20 +64,20 @@ class ExchangeHandler(ABC):
         self.exchange = dbservice.getExchange(self.name)
 
     @abstractmethod
-    def convertIntervalString(self, interval: Interval) -> str:
+    def _convertIntervalString(self, interval: Interval) -> str:
         return interval.value
 
     @abstractmethod
-    def convertPairSymbol(self, pair: Pair) -> str:
+    def _convertPairSymbol(self, pair: Pair) -> str:
         return pair.asset + pair.currency
 
     @abstractmethod
-    def convertDate(self, date: datetime) -> str:
+    def _convertDate(self, date: datetime) -> str:
         return datetime.strftime(date, '%Y-%m-%d %H:%M:%S')
 
     @abstractmethod
-    def getHistoricalKlinesFromServer(self, pair: Pair, interval: Interval, periodStart: datetime,
-                                      periodEnd: datetime) -> List[Candle]:
+    def _getHistoricalKlinesFromServer(self, pair: Pair, interval: Interval, periodStart: datetime,
+                                       periodEnd: datetime) -> List[Candle]:
         pass
 
     def getHistoricalKlines(self, pair: Pair, interval: Interval, periodStart: datetime, periodEnd: datetime) -> List[
@@ -46,17 +88,17 @@ class ExchangeHandler(ABC):
         if candles:
             return candles
         else:
-            candles = self.getHistoricalKlinesFromServer(pair, interval, periodStart, periodEnd)
+            candles = self._getHistoricalKlinesFromServer(pair, interval, periodStart, periodEnd)
             self.dbservice.addCandles(candles)
             return candles
+
+    @abstractmethod
+    def getPortfolio(self):
+        pass
 
     # Get balance for a given asset
     @abstractmethod
     def getAssetBalance(self, asset: str):
-        pass
-
-    @abstractmethod
-    def getPortfolio(self):
         pass
 
     # Create an exchange order
@@ -72,4 +114,12 @@ class ExchangeHandler(ABC):
     # Cancel an exchange order
     @abstractmethod
     def cancelOrder(self, orderId):
+        pass
+
+    @abstractmethod
+    def getAllOrders(self, pair: Pair) -> List[Order]:
+        pass
+
+    @abstractmethod
+    def getAllOpenOrders(self, pair: Pair) -> List[Order]:
         pass
