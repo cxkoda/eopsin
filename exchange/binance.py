@@ -3,7 +3,7 @@ from model.pair import Pair
 from service.dbservice import DBService
 from exchange.exchange import ExchangeHandler, Order, LimitOrder, OrderSide, MarketOrder, OrderId
 
-import datetime
+from datetime import datetime
 import numpy as np
 from typing import List
 import binance
@@ -30,13 +30,13 @@ class BinanceHandler(ExchangeHandler):
 
     def getCandleFromData(self, pair: Pair, interval: Interval, data: list) -> Candle:
         candle = Candle(exchange=self.exchange, pair=pair, interval=interval,
-                        openTime=datetime.datetime.fromtimestamp(data[0] / 1000),  # binance timestamps are given in ms
+                        openTime=datetime.fromtimestamp(data[0] / 1000),  # binance timestamps are given in ms
                         open=float(data[1]),
                         high=float(data[2]),
                         low=float(data[3]),
                         close=float(data[4]),
                         volume=float(data[5]),
-                        closeTime=datetime.datetime.fromtimestamp(data[6] / 1000),
+                        closeTime=datetime.fromtimestamp(data[6] / 1000),
                         quoteAssetVolume=float(data[7]),
                         numberOfTrades=data[8],
                         takerBuyBaseAssetVolume=float(data[9]),
@@ -46,12 +46,11 @@ class BinanceHandler(ExchangeHandler):
 
     def _getHistoricalKlinesFromServer(self, pair: Pair, interval: Interval, periodStart: datetime,
                                        periodEnd: datetime) -> List[Candle]:
-        _convertDate = lambda date: datetime.datetime.strftime(date, '%Y-%m-%d %H:%M:%S')
         candles = [self.getCandleFromData(pair, interval, candle) for candle in
-                   self.client.get_historical_klines_generator(self._convertPairSymbol(pair),
-                                                               self._convertIntervalString(interval),
-                                                               self._convertDate(periodStart),
-                                                               self._convertDate(periodEnd))]
+                   self.client.get_historical_klines(self._convertPairSymbol(pair),
+                                                     self._convertIntervalString(interval),
+                                                     self._convertDate(periodStart),
+                                                     self._convertDate(periodEnd))]
         return candles
 
     def getAssetBalance(self, asset: str):
@@ -91,7 +90,7 @@ class BinanceHandler(ExchangeHandler):
     def checkOrder(self, orderId: OrderId):
         return self.client.get_order(symbol=self._convertPairSymbol(orderId.pair), orderId=str(orderId.id))
 
-    def cancelOrder(self, pair: Pair, orderId):
+    def cancelOrder(self, orderId: OrderId):
         pass
 
     def getAllOrders(self, pair: Pair):

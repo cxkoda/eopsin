@@ -82,7 +82,7 @@ class ExchangeHandler(ABC):
 
     def getHistoricalKlines(self, pair: Pair, interval: Interval, periodStart: datetime, periodEnd: datetime) -> List[
         Candle]:
-        missingPeriods = self.dbservice.findMissingCandlePeriods(self.exchange, pair, interval, periodStart, periodEnd)
+        # missingPeriods = self.dbservice.findMissingCandlePeriods(self.exchange, pair, interval, periodStart, periodEnd)
         candles = self.dbservice.findCandles(self.exchange, pair, interval, periodStart, periodEnd)
 
         if candles:
