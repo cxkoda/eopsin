@@ -1,7 +1,8 @@
-from sqlalchemy import Column, Integer, ForeignKey, Float, DateTime, UniqueConstraint, Enum
-from sqlalchemy.orm import relationship
 import enum
 from datetime import timedelta
+
+from sqlalchemy import Column, Integer, ForeignKey, Float, DateTime, UniqueConstraint, Enum
+from sqlalchemy.orm import relationship
 
 from model._sqlbase import Base
 

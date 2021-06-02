@@ -1,13 +1,14 @@
+from datetime import datetime
+from typing import List
+
+import numpy as np
+
+import binance
+from exchange.exchange import ExchangeHandler, Order, LimitOrder, OrderSide, MarketOrder, OrderId
 from model.candle import Candle, Interval
 from model.pair import Pair
 from service.dbservice import DBService
-from exchange.exchange import ExchangeHandler, Order, LimitOrder, OrderSide, MarketOrder, OrderId
 from service.util import ceilDatetime, floorDatetime
-
-from datetime import datetime
-import numpy as np
-from typing import List
-import binance
 
 
 class BinanceHandler(ExchangeHandler):

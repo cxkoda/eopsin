@@ -2,9 +2,10 @@ import datetime
 import unittest
 
 from sqlalchemy import create_engine
-from service.dbservice import DBService
-from model.candle import Candle, Interval
 from sqlalchemy.exc import IntegrityError
+
+from model.candle import Candle, Interval
+from service.dbservice import DBService
 
 getDatetime = lambda date: datetime.datetime.strptime(date, '%Y-%m-%d %H:%M:%S')
 

@@ -1,13 +1,12 @@
-from model.pair import Pair
-from model.candle import Candle, Interval
-from service.dbservice import DBService
-import model.exchange
-
 from abc import ABC, abstractmethod
-from datetime import datetime, timedelta
+from datetime import datetime
+from enum import Enum, unique
 from typing import List, Tuple
 
-from enum import Enum, unique
+import model.exchange
+from model.candle import Candle, Interval
+from model.pair import Pair
+from service.dbservice import DBService
 
 
 @unique

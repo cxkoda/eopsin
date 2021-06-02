@@ -1,14 +1,15 @@
-from model.exchange import Exchange
-from model.pair import Pair
-from model.candle import Candle, Interval
-from service.util import ceilDatetime, floorDatetime
-from model._sqlbase import Base
-
-from sqlalchemy.orm import sessionmaker, load_only
-from sqlalchemy import and_
 from datetime import datetime
 from typing import List, Tuple
+
+from sqlalchemy import and_
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import sessionmaker, load_only
+
+from model._sqlbase import Base
+from model.candle import Candle, Interval
+from model.exchange import Exchange
+from model.pair import Pair
+from service.util import ceilDatetime, floorDatetime
 
 
 class DBService:
