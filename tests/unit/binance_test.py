@@ -1,6 +1,5 @@
 import datetime
 import os
-import time
 import unittest
 
 from sqlalchemy import create_engine
@@ -27,7 +26,6 @@ class TestBinance(unittest.TestCase):
         # API issue: Klines are not available on the testnet -> switching to normal server
         self.binance = BinanceHandler(self.dbService, self.BINANCE_API_KEY, self.BINANCE_API_SECRET)
 
-        start = time.perf_counter()
         PERIOD_START = datetime.datetime(2021, 1, 2, 0, 0, 0) - datetime.timedelta(seconds=10)
         PERIOD_END = datetime.datetime(2021, 1, 10, 23, 59, 59)
         pair = self.dbService.getPair('BTC', 'USDT')
@@ -37,16 +35,10 @@ class TestBinance(unittest.TestCase):
         PERIOD_START = datetime.datetime(2021, 1, 3, 0, 0, 0)
         PERIOD_END = datetime.datetime(2021, 1, 13, 23, 59, 59)
         candles = self.binance.getHistoricalKlines(pair, Interval.HOUR_1, PERIOD_START, PERIOD_END)
-        end = time.perf_counter()
-        delta1 = end - start
         self.assertEqual(264, len(candles))
 
-        start = time.perf_counter()
         PERIOD_START = datetime.datetime(2021, 1, 2, 0, 0, 0)
         candles = self.binance.getHistoricalKlines(pair, Interval.HOUR_1, PERIOD_START, PERIOD_END)
-        end = time.perf_counter()
-        delta2 = end - start
-        self.assertLess(delta2, 0.1 * delta1, "Fetching candles from DB should be way faster than from the exchange")
         self.assertEqual(288, len(candles))
 
     def test_portfolio(self):
@@ -61,7 +53,7 @@ class TestBinance(unittest.TestCase):
         order = MarketOrder(pair, OrderSide.SELL, VOLUME)
         orderId = self.binance.placeOrder(order)
         after = self.binance.getAssetBalance('BTC')
-        self.assertAlmostEqual(VOLUME, before - after, 5)
+        self.assertAlmostEqual(VOLUME, before - after, 4)
 
         self.assertEqual(self.binance.checkOrder(orderId)['status'], 'FILLED')
 

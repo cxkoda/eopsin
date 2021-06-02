@@ -55,7 +55,7 @@ class BinanceHandler(ExchangeHandler):
                                                      self._convertIntervalString(interval),
                                                      # shift by one to somehow get the right klines
                                                      self._convertDate(periodStart - interval.timedelta()),
-                                                     self._convertDate(periodEnd - interval.timedelta()))]
+                                                     self._convertDate(periodEnd))]
         return candles
 
     def getAssetBalance(self, asset: str):
