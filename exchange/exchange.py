@@ -4,8 +4,8 @@ from service.dbservice import DBService
 import model.exchange
 
 from abc import ABC, abstractmethod
-from datetime import datetime
-from typing import List
+from datetime import datetime, timedelta
+from typing import List, Tuple
 
 from enum import Enum, unique
 
@@ -80,17 +80,20 @@ class ExchangeHandler(ABC):
                                        periodEnd: datetime) -> List[Candle]:
         pass
 
-    def getHistoricalKlines(self, pair: Pair, interval: Interval, periodStart: datetime, periodEnd: datetime) -> List[
-        Candle]:
-        # missingPeriods = self.dbservice.findMissingCandlePeriods(self.exchange, pair, interval, periodStart, periodEnd)
-        candles = self.dbservice.findCandles(self.exchange, pair, interval, periodStart, periodEnd)
-
-        if candles:
-            return candles
-        else:
+    def _fetchMissingHistoricalKlines(self, pair: Pair, interval: Interval,
+                                      missingPeriods: List[Tuple[datetime, datetime]]) -> None:
+        for periodStart, periodEnd, in missingPeriods:
             candles = self._getHistoricalKlinesFromServer(pair, interval, periodStart, periodEnd)
             self.dbservice.addCandles(candles)
-            return candles
+
+    def getHistoricalKlines(self, pair: Pair, interval: Interval, periodStart: datetime, periodEnd: datetime) -> List[
+        Candle]:
+        missingPeriods = self.dbservice.findMissingCandlePeriods(self.exchange, pair, interval, periodStart, periodEnd)
+        if missingPeriods:
+            self._fetchMissingHistoricalKlines(pair, interval, missingPeriods)
+            return self.getHistoricalKlines(pair, interval, periodStart, periodEnd)
+        else:
+            return self.dbservice.findCandles(self.exchange, pair, interval, periodStart, periodEnd)
 
     @abstractmethod
     def getPortfolio(self):

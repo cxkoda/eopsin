@@ -2,6 +2,7 @@ from model.candle import Candle, Interval
 from model.pair import Pair
 from service.dbservice import DBService
 from exchange.exchange import ExchangeHandler, Order, LimitOrder, OrderSide, MarketOrder, OrderId
+from service.util import ceilDatetime, floorDatetime
 
 from datetime import datetime
 import numpy as np
@@ -46,11 +47,14 @@ class BinanceHandler(ExchangeHandler):
 
     def _getHistoricalKlinesFromServer(self, pair: Pair, interval: Interval, periodStart: datetime,
                                        periodEnd: datetime) -> List[Candle]:
+        periodStart = ceilDatetime(periodStart, interval.timedelta())
+        periodEnd = floorDatetime(periodEnd, interval.timedelta())
         candles = [self.getCandleFromData(pair, interval, candle) for candle in
                    self.client.get_historical_klines(self._convertPairSymbol(pair),
                                                      self._convertIntervalString(interval),
-                                                     self._convertDate(periodStart),
-                                                     self._convertDate(periodEnd))]
+                                                     # shift by one to somehow get the right klines
+                                                     self._convertDate(periodStart - interval.timedelta()),
+                                                     self._convertDate(periodEnd - interval.timedelta()))]
         return candles
 
     def getAssetBalance(self, asset: str):

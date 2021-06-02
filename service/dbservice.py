@@ -1,13 +1,14 @@
 from model.exchange import Exchange
 from model.pair import Pair
 from model.candle import Candle, Interval
-
+from service.util import ceilDatetime, floorDatetime
 from model._sqlbase import Base
 
 from sqlalchemy.orm import sessionmaker, load_only
 from sqlalchemy import and_
 from datetime import datetime
 from typing import List, Tuple
+from sqlalchemy.exc import IntegrityError
 
 
 class DBService:
@@ -52,13 +53,15 @@ class DBService:
         return pair
 
     def addCandle(self, candle: Candle):
-        self.session.add(candle)
-        self.session.commit()
+        try:
+            self.session.add(candle)
+            self.session.commit()
+        except IntegrityError:
+            self.session.rollback()
 
     def addCandles(self, candles: List[Candle]):
         for candle in candles:
-            self.session.add(candle)
-        self.session.commit()
+            self.addCandle(candle)
 
     def findCandles(self, exchange: Exchange, pair: Pair, interval: Interval, periodStart: datetime,
                     periodEnd: datetime) -> List[Candle]:
@@ -72,6 +75,8 @@ class DBService:
     def findMissingCandlePeriods(self, exchange: Exchange, pair: Pair, interval: Interval, periodStart: datetime,
                                  periodEnd: datetime) -> \
             List[Tuple[datetime, datetime]]:
+        periodStart = ceilDatetime(periodStart, interval.timedelta())
+        periodEnd = floorDatetime(periodEnd, interval.timedelta())
         candles = self.session.query(Candle) \
             .filter(and_(Candle.exchange_id == exchange.id,
                          Candle.pair_id == pair.id,
