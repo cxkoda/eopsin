@@ -2,31 +2,27 @@ import datetime
 import os
 import unittest
 
-from sqlalchemy import create_engine
+import sqlalchemy as sql
 
-from exchange.binance import BinanceHandler
-from exchange.emulator import ExchangeEmulator
-from exchange.exchange import MarketOrder, OrderStatus
-from model.candle import Interval
-from service.dbservice import DBService
+import eopsin as eop
 
 
 class TestBinanceEmulator(unittest.TestCase):
 
     def __init__(self, *args):
         super().__init__(*args)
-        engine = create_engine("sqlite://", echo=False, future=True)
-        self.dbService = DBService(engine)
+        engine = sql.create_engine("sqlite://", echo=False, future=True)
+        self.dbService = eop.DBService(engine)
         self.BINANCE_API_KEY = os.environ['BINANCE_TEST_API_KEY']
         self.BINANCE_API_SECRET = os.environ['BINANCE_TEST_API_SECRET']
-        self.binance = BinanceHandler(self.dbService, self.BINANCE_API_KEY, self.BINANCE_API_SECRET, testnet=True)
+        self.binance = eop.BinanceHandler(self.dbService, self.BINANCE_API_KEY, self.BINANCE_API_SECRET, testnet=True)
 
     def setUp(self) -> None:
-        self.emulator = ExchangeEmulator(self.binance, portfolio={'BTC': 100})
+        self.emulator = eop.ExchangeEmulator(self.binance, portfolio={'BTC': 100})
 
     def test_basicDelegation(self):
         pair = self.dbService.getPair('BTC', 'USDT')
-        interval = Interval.DAY_1
+        interval = eop.Interval.DAY_1
         begin = datetime.datetime(2021, 5, 10, 10, 0, 00)
         end = datetime.datetime(2021, 5, 10, 12, 0, 00)
         self.assertEqual(self.binance._getHistoricalKlinesFromServer(pair, interval, begin, end),
@@ -42,10 +38,10 @@ class TestBinanceEmulator(unittest.TestCase):
 
     def test_marketOrder(self):
         pair = self.dbService.getPair('BTC', 'USDT')
-        order = MarketOrder.newSell(pair, 30)
+        order = eop.MarketOrder.newSell(pair, 30)
         orderId = self.emulator.placeOrder(order)
 
-        self.assertEqual(self.emulator.checkOrder(orderId), OrderStatus.FILLED)
+        self.assertEqual(self.emulator.checkOrder(orderId), eop.OrderStatus.FILLED)
         self.assertEqual(70, self.emulator.getAssetBalance('BTC'))
         self.assertGreater(self.emulator.getAssetBalance('USDT'), 0)
 

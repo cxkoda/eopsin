@@ -1,26 +1,24 @@
 import datetime
-from sqlalchemy import create_engine
 
-from exchange.binance import BinanceHandler
-from service.dbservice import DBService
+import sqlalchemy as sql
 
-from model.candle import Interval
+import eopsin as eop
 
 BINANCE_API_KEY = "xxxx"
 BINANCE_API_SECRET = "xxxx"
 
 PERIOD_START = "2021-01-01 00:00:00"
-PERIOD_END = "2021-01-10 23:59:59"
+PERIOD_END = "2021-01-02 00:00:00"
 
-engine = create_engine("sqlite:///foo.sqlite", echo=False, future=True)
-dbService = DBService(engine)
+engine = sql.create_engine("sqlite:///foo.sqlite", echo=False, future=True)
+dbService = eop.DBService(engine)
 
 pair = dbService.getPair('BTC', 'USDT')
 print(pair)
 
-binance = BinanceHandler(dbService, BINANCE_API_KEY, BINANCE_API_SECRET)
+binance = eop.BinanceHandler(dbService, BINANCE_API_KEY, BINANCE_API_SECRET)
 getDatetime = lambda date: datetime.datetime.strptime(date, '%Y-%m-%d %H:%M:%S')
-candles = binance.getHistoricalKlines(pair, Interval.HOUR_1, getDatetime(PERIOD_START), getDatetime(PERIOD_END))
+candles = binance.getHistoricalKlines(pair, eop.Interval.MINUTE_1, getDatetime(PERIOD_START), getDatetime(PERIOD_END))
 
 print(candles)
 

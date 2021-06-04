@@ -1,10 +1,9 @@
 import enum
 from datetime import timedelta
 
-from sqlalchemy import Column, Integer, ForeignKey, Float, DateTime, UniqueConstraint, Enum
-from sqlalchemy.orm import relationship
+import sqlalchemy as sql
 
-from model._sqlbase import Base
+from ._sqlbase import Base
 
 
 @enum.unique
@@ -36,27 +35,27 @@ class Interval(enum.Enum):
 
 class Candle(Base):
     __tablename__ = 'candle'
-    __table_args__ = (UniqueConstraint('exchange_id', 'pair_id', 'interval', 'openTime', name='_candle_unique'),
+    __table_args__ = (sql.UniqueConstraint('exchange_id', 'pair_id', 'interval', 'openTime', name='_candle_unique'),
                       )
-    id = Column(Integer, primary_key=True)
-    exchange_id = Column(Integer, ForeignKey('exchange.id'))
-    exchange = relationship("Exchange")
-    pair_id = Column(Integer, ForeignKey('pair.id'))
-    pair = relationship("Pair")
-    interval = Column(Enum(Interval))
+    id = sql.Column(sql.Integer, primary_key=True)
+    exchange_id = sql.Column(sql.Integer, sql.ForeignKey('exchange.id'))
+    exchange = sql.orm.relationship("Exchange")
+    pair_id = sql.Column(sql.Integer, sql.ForeignKey('pair.id'))
+    pair = sql.orm.relationship("Pair")
+    interval = sql.Column(sql.Enum(Interval))
 
-    openTime = Column(DateTime)
-    closeTime = Column(DateTime)
+    openTime = sql.Column(sql.DateTime)
+    closeTime = sql.Column(sql.DateTime)
 
-    open = Column(Float)
-    high = Column(Float)
-    low = Column(Float)
-    close = Column(Float)
-    volume = Column(Float)
-    quoteAssetVolume = Column(Float)
-    numberOfTrades = Column(Integer)
-    takerBuyBaseAssetVolume = Column(Float)
-    takerBuyQuoteAssetVolume = Column(Float)
+    open = sql.Column(sql.Float)
+    high = sql.Column(sql.Float)
+    low = sql.Column(sql.Float)
+    close = sql.Column(sql.Float)
+    volume = sql.Column(sql.Float)
+    quoteAssetVolume = sql.Column(sql.Float)
+    numberOfTrades = sql.Column(sql.Integer)
+    takerBuyBaseAssetVolume = sql.Column(sql.Float)
+    takerBuyQuoteAssetVolume = sql.Column(sql.Float)
 
     def __repr__(self):
         return f'{self.pair} {self.interval} {self.openTime}: {self.open} -> {self.close}'

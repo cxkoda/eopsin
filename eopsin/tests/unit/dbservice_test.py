@@ -1,11 +1,9 @@
 import datetime
 import unittest
 
-from sqlalchemy import create_engine
-from sqlalchemy.exc import IntegrityError
+import sqlalchemy as sql
 
-from model.candle import Candle, Interval
-from service.dbservice import DBService
+import eopsin as eop
 
 getDatetime = lambda date: datetime.datetime.strptime(date, '%Y-%m-%d %H:%M:%S')
 
@@ -13,8 +11,8 @@ getDatetime = lambda date: datetime.datetime.strptime(date, '%Y-%m-%d %H:%M:%S')
 class TestDBService(unittest.TestCase):
 
     def setUp(self) -> None:
-        engine = create_engine("sqlite://", echo=False, future=True)
-        self.dbService = DBService(engine)
+        engine = sql.create_engine("sqlite://", echo=False, future=True)
+        self.dbService = eop.DBService(engine)
 
     def test_exchange(self):
         self.assertEqual(self.dbService.findExchange('Binance'), None, "DB should be empty")
@@ -27,18 +25,18 @@ class TestDBService(unittest.TestCase):
     def test_addGetSingleCandle(self):
         binance = self.dbService.addExchange('Binance')
         pair = self.dbService.getPair('BTC', 'USDT')
-        interval = Interval.MINUTE_1
+        interval = eop.Interval.MINUTE_1
         openTime1 = datetime.datetime(2021, 2, 10, 10, 55, 00)
         openTime2 = datetime.datetime(2021, 2, 10, 10, 56, 00)
         self.dbService.addCandle(
-            Candle(exchange=binance, pair=pair, interval=interval, openTime=openTime1, closeTime=openTime2))
+            eop.Candle(exchange=binance, pair=pair, interval=interval, openTime=openTime1, closeTime=openTime2))
         candles = self.dbService.findCandles(binance, pair, interval, openTime1, openTime2)
         self.assertEqual(1, len(candles), "Should only find one candle")
         self.assertEqual(openTime1, candles[0].openTime, "Wrong candle found")
 
         closeTime = datetime.datetime(2021, 2, 10, 10, 57, 00)
         self.dbService.addCandle(
-            Candle(exchange=binance, pair=pair, interval=interval, openTime=openTime2, closeTime=closeTime))
+            eop.Candle(exchange=binance, pair=pair, interval=interval, openTime=openTime2, closeTime=closeTime))
         self.assertEqual(1, len(candles), "Should only find one candle")
         self.assertEqual(openTime1, candles[0].openTime, "Wrong candle found")
 
@@ -46,12 +44,14 @@ class TestDBService(unittest.TestCase):
         binance = self.dbService.addExchange('Binance')
         pair = self.dbService.getPair('BTC', 'USDT')
         self.dbService.addCandle(
-            Candle(exchange=binance, pair=pair, interval=Interval.DAY_1, openTime=getDatetime('2021-01-03 00:00:00'),
-                   closeTime=getDatetime('2021-01-04 00:00:00')))
+            eop.Candle(exchange=binance, pair=pair, interval=eop.Interval.DAY_1,
+                       openTime=getDatetime('2021-01-03 00:00:00'),
+                       closeTime=getDatetime('2021-01-04 00:00:00')))
         self.dbService.addCandle(
-            Candle(exchange=binance, pair=pair, interval=Interval.DAY_1, openTime=getDatetime('2021-01-06 00:00:00'),
-                   closeTime=getDatetime('2021-01-07 00:00:00')))
-        missingPeriods = self.dbService.findMissingCandlePeriods(binance, pair, Interval.DAY_1,
+            eop.Candle(exchange=binance, pair=pair, interval=eop.Interval.DAY_1,
+                       openTime=getDatetime('2021-01-06 00:00:00'),
+                       closeTime=getDatetime('2021-01-07 00:00:00')))
+        missingPeriods = self.dbService.findMissingCandlePeriods(binance, pair, eop.Interval.DAY_1,
                                                                  getDatetime('2021-01-01 00:00:00'),
                                                                  getDatetime('2021-01-10 00:00:00'))
         self.assertEqual(missingPeriods[0], [getDatetime('2021-01-01 00:00:00'), getDatetime('2021-01-03 00:00:00')])
@@ -61,26 +61,28 @@ class TestDBService(unittest.TestCase):
     def test_singleMissingCandle(self):
         binance = self.dbService.addExchange('Binance')
         pair = self.dbService.getPair('BTC', 'USDT')
-        interval = Interval.MINUTE_1
+        interval = eop.Interval.MINUTE_1
         openTime = datetime.datetime(2021, 2, 10, 10, 55, 00)
         closeTime = datetime.datetime(2021, 2, 10, 10, 56, 00)
 
-        missingPeriods = self.dbService.findMissingCandlePeriods(binance, pair, Interval.MINUTE_1, openTime, closeTime)
+        missingPeriods = self.dbService.findMissingCandlePeriods(binance, pair, eop.Interval.MINUTE_1, openTime,
+                                                                 closeTime)
 
         self.assertEqual(1, len(missingPeriods), "Only one candle should be identified")
         self.assertEqual([openTime, closeTime], missingPeriods[0], "Begin and end should match the rounded datetimes")
 
         # Add missing candle and test again
         self.dbService.addCandle(
-            Candle(exchange=binance, pair=pair, interval=interval, openTime=openTime, closeTime=closeTime))
-        missingPeriods = self.dbService.findMissingCandlePeriods(binance, pair, Interval.MINUTE_1, openTime, closeTime)
+            eop.Candle(exchange=binance, pair=pair, interval=interval, openTime=openTime, closeTime=closeTime))
+        missingPeriods = self.dbService.findMissingCandlePeriods(binance, pair, eop.Interval.MINUTE_1, openTime,
+                                                                 closeTime)
         self.assertEqual([], missingPeriods, "the candle should no longer be missing after added.")
 
     def test_sameExchange(self):
         ''' Tests the behaviour for a second identical exchange entity '''
 
         binance1 = self.dbService.addExchange('Binance')
-        with self.assertRaises(IntegrityError):
+        with self.assertRaises(sql.exc.IntegrityError):
             self.dbService.addExchange('Binance')
 
 
