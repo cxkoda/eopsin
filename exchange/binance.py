@@ -4,7 +4,7 @@ from typing import List
 import numpy as np
 
 import binance
-from exchange.exchange import ExchangeHandler, Order, LimitOrder, OrderSide, MarketOrder, OrderId
+from exchange.exchange import ExchangeHandler, Order, LimitOrder, OrderSide, MarketOrder, OrderId, OrderStatus
 from model.candle import Candle, Interval
 from model.pair import Pair
 from service.dbservice import DBService
@@ -27,10 +27,10 @@ class BinanceHandler(ExchangeHandler):
     def _convertPairSymbol(self, pair: Pair) -> str:
         return pair.asset + pair.currency
 
-    def _convertDate(self, date: datetime) -> str:
-        return datetime.strftime(date, '%Y-%m-%d %H:%M:%S')
+    def _convertDate(self, date: datetime) -> int:
+        return int(date.timestamp() * 1000)  # in milliseconds
 
-    def getCandleFromData(self, pair: Pair, interval: Interval, data: list) -> Candle:
+    def _getCandleFromData(self, pair: Pair, interval: Interval, data: list) -> Candle:
         candle = Candle(exchange=self.exchange, pair=pair, interval=interval,
                         openTime=datetime.fromtimestamp(data[0] / 1000),  # binance timestamps are given in ms
                         open=float(data[1]),
@@ -46,17 +46,27 @@ class BinanceHandler(ExchangeHandler):
                         )
         return candle
 
+    def getTime(self) -> datetime:
+        response = self.client.get_server_time()
+        timestamp = float(response['serverTime'])  # timestamp is in milliseconds
+        return datetime.fromtimestamp(timestamp / 1000)
+
     def _getHistoricalKlinesFromServer(self, pair: Pair, interval: Interval, periodStart: datetime,
                                        periodEnd: datetime) -> List[Candle]:
         periodStart = ceilDatetime(periodStart, interval.timedelta())
         periodEnd = floorDatetime(periodEnd, interval.timedelta())
-        candles = [self.getCandleFromData(pair, interval, candle) for candle in
+        candles = [self._getCandleFromData(pair, interval, candle) for candle in
                    self.client.get_historical_klines(self._convertPairSymbol(pair),
                                                      self._convertIntervalString(interval),
                                                      # shift by one to somehow get the right klines
                                                      self._convertDate(periodStart - interval.timedelta()),
                                                      self._convertDate(periodEnd))]
         return candles
+
+    def getLastCompleteCandleBefore(self, pair: Pair, interval: Interval, date: datetime) -> Candle:
+        begin = floorDatetime(date, interval.timedelta()) - interval.timedelta()
+        candles = self.getHistoricalKlines(pair, interval, begin, date)
+        return candles[0]
 
     def getAssetBalance(self, asset: str):
         info = self.client.get_asset_balance(asset=asset)
@@ -93,7 +103,9 @@ class BinanceHandler(ExchangeHandler):
         return OrderId(pair=order.pair, id=info['orderId'])
 
     def checkOrder(self, orderId: OrderId):
-        return self.client.get_order(symbol=self._convertPairSymbol(orderId.pair), orderId=str(orderId.id))
+        response = self.client.get_order(symbol=self._convertPairSymbol(orderId.pair), orderId=str(orderId.id))
+        status = response['status']
+        return OrderStatus[status]
 
     def cancelOrder(self, orderId: OrderId):
         pass

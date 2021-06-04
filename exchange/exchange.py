@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from datetime import datetime
 from enum import Enum, unique
-from typing import List, Tuple
+from typing import List, Tuple, Dict
 
 import model.exchange
 from model.candle import Candle, Interval
@@ -15,30 +15,15 @@ class OrderSide(Enum):
     SELL = 2
 
 
-class Order:
-    pair: Pair
-
-
-class MarketOrder(Order):
-    side: OrderSide
-    volume: float
-
-    def __init__(self, pair: Pair, side: OrderSide, volume: float):
-        self.pair = pair
-        self.side = side
-        self.volume = volume
-
-
-class LimitOrder(Order):
-    side: OrderSide
-    volume: float
-    price: float
-
-    def __init__(self, pair: Pair, side: OrderSide, volume: float, price: float):
-        self.pair = pair
-        self.side = side
-        self.volume = volume
-        self.price = price
+@unique
+class OrderStatus(Enum):
+    NEW = 1
+    PARTIALLY_FILLED = 2
+    FILLED = 3
+    CANCELED = 4
+    PENDING_CANCEL = 5
+    REJECTED = 6
+    EXPIRED = 7
 
 
 class OrderId:
@@ -53,6 +38,43 @@ class OrderId:
         return f'<OrderId(pair={self.pair}, id={self.id}>'
 
 
+class Order:
+    pair: Pair
+    status: OrderStatus
+
+
+class MarketOrder(Order):
+    side: OrderSide
+    volume: float
+
+    def __init__(self, pair: Pair, side: OrderSide, volume: float, status: OrderStatus = OrderStatus.NEW):
+        self.pair = pair
+        self.side = side
+        self.volume = volume
+        self.status = status
+
+    @classmethod
+    def newSell(cls, pair: Pair, volume: float):
+        return cls(pair, OrderSide.SELL, volume)
+
+    @classmethod
+    def newBuy(cls, pair: Pair, volume: float):
+        return cls(pair, OrderSide.BUY, volume)
+
+
+class LimitOrder(Order):
+    side: OrderSide
+    volume: float
+    price: float
+
+    def __init__(self, pair: Pair, side: OrderSide, volume: float, price: float, status: OrderStatus = OrderStatus.NEW):
+        self.pair = pair
+        self.side = side
+        self.volume = volume
+        self.price = price
+        self.status = status
+
+
 class ExchangeHandler(ABC):
     name: str
     dbservice: DBService
@@ -61,18 +83,6 @@ class ExchangeHandler(ABC):
     def __init__(self, dbservice: DBService):
         self.dbservice = dbservice
         self.exchange = dbservice.getExchange(self.name)
-
-    @abstractmethod
-    def _convertIntervalString(self, interval: Interval) -> str:
-        return interval.value
-
-    @abstractmethod
-    def _convertPairSymbol(self, pair: Pair) -> str:
-        return pair.asset + pair.currency
-
-    @abstractmethod
-    def _convertDate(self, date: datetime) -> str:
-        return datetime.strftime(date, '%Y-%m-%d %H:%M:%S')
 
     @abstractmethod
     def _getHistoricalKlinesFromServer(self, pair: Pair, interval: Interval, periodStart: datetime,
@@ -95,22 +105,30 @@ class ExchangeHandler(ABC):
             return self.dbservice.findCandles(self.exchange, pair, interval, periodStart, periodEnd)
 
     @abstractmethod
-    def getPortfolio(self):
+    def getLastCompleteCandleBefore(self, pair: Pair, interval: Interval, date: datetime) -> Candle:
+        pass
+
+    @abstractmethod
+    def getTime(self) -> datetime:
+        pass
+
+    @abstractmethod
+    def getPortfolio(self) -> Dict[str, float]:
         pass
 
     # Get balance for a given asset
     @abstractmethod
-    def getAssetBalance(self, asset: str):
+    def getAssetBalance(self, asset: str) -> float:
         pass
 
     # Create an exchange order
     @abstractmethod
-    def placeOrder(self, order: Order):
+    def placeOrder(self, order: Order) -> OrderId:
         pass
 
     # Check an exchange order status
     @abstractmethod
-    def checkOrder(self, orderId):
+    def checkOrder(self, orderId) -> OrderStatus:
         pass
 
     # Cancel an exchange order
