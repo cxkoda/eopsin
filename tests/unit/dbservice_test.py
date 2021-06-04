@@ -24,19 +24,57 @@ class TestDBService(unittest.TestCase):
         self.assertEqual(binance.name, 'Binance')
         self.assertEqual(self.dbService.getExchange('Binance'), binance, "Binance should be in db")
 
+    def test_addGetSingleCandle(self):
+        binance = self.dbService.addExchange('Binance')
+        pair = self.dbService.getPair('BTC', 'USDT')
+        interval = Interval.MINUTE_1
+        openTime1 = datetime.datetime(2021, 2, 10, 10, 55, 00)
+        openTime2 = datetime.datetime(2021, 2, 10, 10, 56, 00)
+        self.dbService.addCandle(
+            Candle(exchange=binance, pair=pair, interval=interval, openTime=openTime1, closeTime=openTime2))
+        candles = self.dbService.findCandles(binance, pair, interval, openTime1, openTime2)
+        self.assertEqual(1, len(candles), "Should only find one candle")
+        self.assertEqual(openTime1, candles[0].openTime, "Wrong candle found")
+
+        closeTime = datetime.datetime(2021, 2, 10, 10, 57, 00)
+        self.dbService.addCandle(
+            Candle(exchange=binance, pair=pair, interval=interval, openTime=openTime2, closeTime=closeTime))
+        self.assertEqual(1, len(candles), "Should only find one candle")
+        self.assertEqual(openTime1, candles[0].openTime, "Wrong candle found")
+
     def test_missingCandles(self):
         binance = self.dbService.addExchange('Binance')
         pair = self.dbService.getPair('BTC', 'USDT')
         self.dbService.addCandle(
-            Candle(exchange=binance, pair=pair, interval=Interval.DAY_1, openTime=getDatetime('2021-01-03 00:00:00')))
+            Candle(exchange=binance, pair=pair, interval=Interval.DAY_1, openTime=getDatetime('2021-01-03 00:00:00'),
+                   closeTime=getDatetime('2021-01-04 00:00:00')))
         self.dbService.addCandle(
-            Candle(exchange=binance, pair=pair, interval=Interval.DAY_1, openTime=getDatetime('2021-01-06 00:00:00')))
+            Candle(exchange=binance, pair=pair, interval=Interval.DAY_1, openTime=getDatetime('2021-01-06 00:00:00'),
+                   closeTime=getDatetime('2021-01-07 00:00:00')))
         missingPeriods = self.dbService.findMissingCandlePeriods(binance, pair, Interval.DAY_1,
                                                                  getDatetime('2021-01-01 00:00:00'),
                                                                  getDatetime('2021-01-10 00:00:00'))
         self.assertEqual(missingPeriods[0], [getDatetime('2021-01-01 00:00:00'), getDatetime('2021-01-03 00:00:00')])
         self.assertEqual(missingPeriods[1], [getDatetime('2021-01-04 00:00:00'), getDatetime('2021-01-06 00:00:00')])
         self.assertEqual(missingPeriods[2], [getDatetime('2021-01-07 00:00:00'), getDatetime('2021-01-10 00:00:00')])
+
+    def test_singleMissingCandle(self):
+        binance = self.dbService.addExchange('Binance')
+        pair = self.dbService.getPair('BTC', 'USDT')
+        interval = Interval.MINUTE_1
+        openTime = datetime.datetime(2021, 2, 10, 10, 55, 00)
+        closeTime = datetime.datetime(2021, 2, 10, 10, 56, 00)
+
+        missingPeriods = self.dbService.findMissingCandlePeriods(binance, pair, Interval.MINUTE_1, openTime, closeTime)
+
+        self.assertEqual(1, len(missingPeriods), "Only one candle should be identified")
+        self.assertEqual([openTime, closeTime], missingPeriods[0], "Begin and end should match the rounded datetimes")
+
+        # Add missing candle and test again
+        self.dbService.addCandle(
+            Candle(exchange=binance, pair=pair, interval=interval, openTime=openTime, closeTime=closeTime))
+        missingPeriods = self.dbService.findMissingCandlePeriods(binance, pair, Interval.MINUTE_1, openTime, closeTime)
+        self.assertEqual([], missingPeriods, "the candle should no longer be missing after added.")
 
     def test_sameExchange(self):
         ''' Tests the behaviour for a second identical exchange entity '''

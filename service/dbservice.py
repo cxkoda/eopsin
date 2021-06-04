@@ -70,7 +70,8 @@ class DBService:
             .filter(and_(Candle.exchange_id == exchange.id,
                          Candle.pair_id == pair.id,
                          Candle.interval == interval,
-                         Candle.openTime.between(periodStart, periodEnd))) \
+                         Candle.openTime >= periodStart,
+                         Candle.closeTime <= periodEnd)) \
             .order_by(Candle.openTime).all()
 
     def findMissingCandlePeriods(self, exchange: Exchange, pair: Pair, interval: Interval, periodStart: datetime,
@@ -82,7 +83,8 @@ class DBService:
             .filter(and_(Candle.exchange_id == exchange.id,
                          Candle.pair_id == pair.id,
                          Candle.interval == interval,
-                         Candle.openTime.between(periodStart, periodEnd))) \
+                         Candle.openTime >= periodStart,
+                         Candle.closeTime <= periodEnd)) \
             .options(load_only('openTime')) \
             .order_by(Candle.openTime)
 
@@ -97,8 +99,7 @@ class DBService:
             if openTime not in opens:
                 if currentBegin is None:
                     currentBegin = openTime
-                else:
-                    currentEnd = openTime + interval.timedelta()
+                currentEnd = openTime + interval.timedelta()
             else:
                 if currentEnd is not None:
                     missingPeriods.append([currentBegin, currentEnd])
