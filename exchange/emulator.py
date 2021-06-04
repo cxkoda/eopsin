@@ -35,6 +35,7 @@ class ExchangeEmulator(ExchangeHandler):
                                        periodEnd: datetime) -> List[Candle]:
         pass
 
+    @_Decorators.delegateToExchange
     def getLastCompleteCandleBefore(self, pair: Pair, interval: Interval, date: datetime) -> Candle:
         pass
 
@@ -89,7 +90,7 @@ class ExchangeEmulator(ExchangeHandler):
         if isinstance(order, MarketOrder):
             self._processMarketOrder(order)
         else:
-            raise ValueError(f"Unknown order type: {type(order)}")
+            raise ValueError(f"Order type unsupported: {type(order)}")
 
         return orderIdentifier
 
