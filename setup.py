@@ -5,7 +5,6 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="eopsin",
-    version="0.0.0",
     author="David Huber",
     author_email="dave@yomi.eu",
     description="Yet another automated crypto trading framework",
@@ -18,6 +17,10 @@ setuptools.setup(
         "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
         "Operating System :: OS Independent",
     ],
+    version_config={
+        "starting_version": "0.0.0",
+    },
+    setup_requires=['setuptools-git-versioning'],
     install_requires=[
         'SQLAlchemy>=1.4.15',
         'numpy>=1.19.5',
