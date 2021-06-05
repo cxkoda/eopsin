@@ -85,8 +85,8 @@ class TestBinanceEmulatorBacktesting(unittest.TestCase):
         closes = [58862.22, 58911.0, 58894.03, 58955.12, 58945.23, 58886.39, 58932.13, 58951.38, 58910.0, 58898.31]
 
         for openTime, close, candle in zip(openTimes, closes, recorder.candles):
-            self.assertEqual(openTime, candle.openTime)
-            self.assertEqual(close, candle.close)
+            self.assertEqual(openTime, candle.openTime, f"OpenTime mismatch for candle {candle},\n{recorder.candles}")
+            self.assertEqual(close, candle.close, f"Close value mismatch for candle {candle},\n{recorder.candles}")
 
 
 if __name__ == '__main__':
