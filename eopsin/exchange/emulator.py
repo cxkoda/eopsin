@@ -1,4 +1,3 @@
-import asyncio
 import copy
 import datetime as dt
 import itertools as it
@@ -107,7 +106,7 @@ class ExchangeEmulator(ExchangeHandler):
     def getAllOpenOrders(self, pair: m.Pair) -> List[m.Order]:
         pass
 
-    async def eventLoop(self, tickwidth: dt.timedelta, terminate=lambda: False) -> None:
+    def eventLoop(self, tickwidth: dt.timedelta, terminate=lambda: False) -> None:
         while not terminate():
             self._now = util.floorDatetime(self._now, tickwidth) + tickwidth
             self._fireEvents(self._now)
@@ -121,4 +120,4 @@ class ExchangeEmulator(ExchangeHandler):
     def backtest(self, periodStart: dt.datetime, periodEnd: dt.datetime,
                  tickwidth: dt.timedelta = dt.timedelta(minutes=1)):
         self._now = periodStart
-        asyncio.run(self.eventLoop(tickwidth, terminate=self._getBacktestTermination(periodEnd)))
+        self.eventLoop(tickwidth, terminate=self._getBacktestTermination(periodEnd))

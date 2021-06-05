@@ -1,4 +1,4 @@
-import asyncio
+import time
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
 from typing import List, Tuple, Dict
@@ -104,10 +104,10 @@ class ExchangeHandler(ABC):
             if util.floorDatetime(time, interval.timedelta()) == time:
                 self.events[interval]()
 
-    async def eventLoop(self, tickwidth: timedelta, terminate=lambda: False) -> None:
+    def eventLoop(self, tickwidth: timedelta, terminate=lambda: False) -> None:
         while not terminate():
             now = self.getTime()
             next = util.floorDatetime(now, tickwidth) + tickwidth
             delta = next - now
-            await asyncio.sleep(delta.total_seconds())
+            time.sleep(delta.total_seconds())
             self._fireEvents(next)

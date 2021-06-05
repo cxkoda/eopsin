@@ -1,10 +1,10 @@
-import asyncio
 import datetime
 import os
 import unittest
 
 import numpy as np
 import sqlalchemy as sql
+import timeout_decorator
 
 import eopsin as eop
 
@@ -43,6 +43,7 @@ class TestBinanceBasic(unittest.TestCase):
         now = datetime.datetime.now()
         self.assertLess(np.abs((serverTime - now).total_seconds()), 1)
 
+    @timeout_decorator.timeout(70)
     def test_minuteTrigger(self):
         class TriggerMinuteOnce:
             def __init__(self):
@@ -66,12 +67,8 @@ class TestBinanceBasic(unittest.TestCase):
         self.binance.events['onNewCandle_MINUTE_1'] += handler.eventCallback
         self.binance.events[eop.Interval.MINUTE_1] += handler.eventCallback
 
-        async def main():
-            await asyncio.wait_for(
-                self.binance.eventLoop(datetime.timedelta(seconds=10), terminate=handler.terminateCallback)
-                , timeout=70)
+        self.binance.eventLoop(datetime.timedelta(seconds=10), terminate=handler.terminateCallback)
 
-        asyncio.run(main())
         self.assertEqual(3, handler.eventCount)
         self.assertLess(handler.loopCount, 7)
 
