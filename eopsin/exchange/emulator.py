@@ -1,9 +1,11 @@
+import asyncio
 import copy
+import datetime as dt
 import itertools as it
-from datetime import datetime
 from typing import List, Dict
 
 import eopsin.model as m
+import eopsin.util as util
 from .exchange import ExchangeHandler
 
 
@@ -20,8 +22,8 @@ class ExchangeEmulator(ExchangeHandler):
 
             return delegatedFun
 
-    def __init__(self, exchange: ExchangeHandler, portfolio: Dict[str, float] = {}, now: datetime = datetime.now()):
-
+    def __init__(self, exchange: ExchangeHandler, portfolio: Dict[str, float] = {},
+                 now: dt.datetime = dt.datetime.now()):
         super().__init__(exchange.dbservice)
         self._exchangeHandler = exchange
         self._portfolio = portfolio
@@ -30,19 +32,19 @@ class ExchangeEmulator(ExchangeHandler):
         self._orderIdGenerator = it.count(1)
 
     @_Decorators.delegateToExchange
-    def _getHistoricalKlinesFromServer(self, pair: m.Pair, interval: m.Interval, periodStart: datetime,
-                                       periodEnd: datetime) -> List[m.Candle]:
+    def _getHistoricalKlinesFromServer(self, pair: m.Pair, interval: m.Interval, periodStart: dt.datetime,
+                                       periodEnd: dt.datetime) -> List[m.Candle]:
         pass
 
     @_Decorators.delegateToExchange
-    def getLastCompleteCandleBefore(self, pair: m.Pair, interval: m.Interval, date: datetime) -> m.Candle:
+    def getLastCompleteCandleBefore(self, pair: m.Pair, interval: m.Interval, date: dt.datetime) -> m.Candle:
         pass
 
     def getCurrentCourse(self, pair: m.Pair):
         ''' Defined to be the closing price of the last 1 minute candle '''
         return self._exchangeHandler.getLastCompleteCandleBefore(pair, m.Interval.MINUTE_1, self._now).close
 
-    def getTime(self) -> datetime:
+    def getTime(self) -> dt.datetime:
         return self._now
 
     def getAssetBalance(self, asset: str):
@@ -104,3 +106,19 @@ class ExchangeEmulator(ExchangeHandler):
 
     def getAllOpenOrders(self, pair: m.Pair) -> List[m.Order]:
         pass
+
+    async def eventLoop(self, tickwidth: dt.timedelta, terminate=lambda: False) -> None:
+        while not terminate():
+            self._now = util.floorDatetime(self._now, tickwidth) + tickwidth
+            self._fireEvents(self._now)
+
+    def _getBacktestTermination(self, periodEnd: dt.datetime):
+        def terminate():
+            return self.getTime() >= periodEnd
+
+        return terminate
+
+    def backtest(self, periodStart: dt.datetime, periodEnd: dt.datetime,
+                 tickwidth: dt.timedelta = dt.timedelta(minutes=1)):
+        self._now = periodStart
+        asyncio.run(self.eventLoop(tickwidth, terminate=self._getBacktestTermination(periodEnd)))

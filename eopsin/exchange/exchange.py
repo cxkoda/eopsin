@@ -1,19 +1,43 @@
+import asyncio
 from abc import ABC, abstractmethod
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Tuple, Dict
 
 import eopsin.model as m
 import eopsin.service as s
+import eopsin.util as util
+
+
+class NewCandleEvents(util.Events):
+
+    @staticmethod
+    def _getNewCandleEventName(interval: m.Interval):
+        return f'onNewCandle_{interval.name}'
+
+    def __init__(self):
+        super().__init__(events=[NewCandleEvents._getNewCandleEventName(interval) for interval in m.Interval])
+
+    def __getitem__(self, item):
+        if isinstance(item, m.Interval):
+            item = NewCandleEvents._getNewCandleEventName(item)
+        return super().__getitem__(item)
+
+    def __setitem__(self, item, value):
+        if isinstance(item, m.Interval):
+            item = NewCandleEvents._getNewCandleEventName(item)
+        super().__setitem__(item, value)
 
 
 class ExchangeHandler(ABC):
     name: str
     dbservice: s.DBService
     exchange: m.Exchange
+    events: NewCandleEvents
 
     def __init__(self, dbservice: s.DBService):
         self.dbservice = dbservice
         self.exchange = dbservice.getExchange(self.name)
+        self.events = NewCandleEvents()
 
     @abstractmethod
     def _getHistoricalKlinesFromServer(self, pair: m.Pair, interval: m.Interval, periodStart: datetime,
@@ -74,3 +98,16 @@ class ExchangeHandler(ABC):
     @abstractmethod
     def getAllOpenOrders(self, pair: m.Pair) -> List[m.Order]:
         pass
+
+    def _fireEvents(self, time: datetime) -> None:
+        for interval in m.Interval:
+            if util.floorDatetime(time, interval.timedelta()) == time:
+                self.events[interval]()
+
+    async def eventLoop(self, tickwidth: timedelta, terminate=lambda: False) -> None:
+        while not terminate():
+            now = self.getTime()
+            next = util.floorDatetime(now, tickwidth) + tickwidth
+            delta = next - now
+            await asyncio.sleep(delta.total_seconds())
+            self._fireEvents(next)

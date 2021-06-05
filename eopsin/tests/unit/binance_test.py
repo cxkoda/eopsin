@@ -1,3 +1,4 @@
+import asyncio
 import datetime
 import os
 import unittest
@@ -41,6 +42,38 @@ class TestBinanceBasic(unittest.TestCase):
         serverTime = self.binance.getTime()
         now = datetime.datetime.now()
         self.assertLess(np.abs((serverTime - now).total_seconds()), 1)
+
+    def test_minuteTrigger(self):
+        class TriggerMinuteOnce:
+            def __init__(self):
+                self.eventCount = 0
+                self.loopCount = 0
+
+            def eventCallback(self):
+                self.eventCount += 1
+
+            def terminateCallback(self):
+                terminate = (self.eventCount > 0)
+                if not terminate:
+                    self.loopCount += 1
+
+                return terminate
+
+        handler = TriggerMinuteOnce()
+
+        # Test all 3 possible ways to add functions
+        self.binance.events.onNewCandle_MINUTE_1 += handler.eventCallback
+        self.binance.events['onNewCandle_MINUTE_1'] += handler.eventCallback
+        self.binance.events[eop.Interval.MINUTE_1] += handler.eventCallback
+
+        async def main():
+            await asyncio.wait_for(
+                self.binance.eventLoop(datetime.timedelta(seconds=10), terminate=handler.terminateCallback)
+                , timeout=70)
+
+        asyncio.run(main())
+        self.assertEqual(3, handler.eventCount)
+        self.assertLess(handler.loopCount, 7)
 
 
 class TestBinanceKlines(unittest.TestCase):
