@@ -7,6 +7,10 @@ import sqlalchemy as sql
 import eopsin as eop
 
 
+def utcdate(*args):
+    return datetime.datetime(*args, tzinfo=datetime.timezone.utc)
+
+
 class TestBinanceEmulator(unittest.TestCase):
 
     def __init__(self, *args):
@@ -23,8 +27,8 @@ class TestBinanceEmulator(unittest.TestCase):
     def test_basicDelegation(self):
         pair = self.dbService.getPair('BTC', 'USDT')
         interval = eop.Interval.DAY_1
-        begin = datetime.datetime(2021, 5, 10, 10, 0, 00)
-        end = datetime.datetime(2021, 5, 10, 12, 0, 00)
+        begin = utcdate(2021, 5, 10, 10, 0, 00)
+        end = utcdate(2021, 5, 10, 12, 0, 00)
         self.assertEqual(self.binance._getHistoricalKlinesFromServer(pair, interval, begin, end),
                          self.emulator._getHistoricalKlinesFromServer(pair, interval, begin, end),
                          "_getHistoricalKlinesFromServer should be delegated to the underlying handler")
@@ -75,14 +79,14 @@ class TestBinanceEmulatorBacktesting(unittest.TestCase):
 
     def test_newMinuteCandleTrigger(self):
         recorder = CourseRecorder(self.emulator)
-        periodStart = datetime.datetime(2021, 4, 1, 10, 0, 0)
-        periodEnd = datetime.datetime(2021, 4, 1, 10, 10, 0)
+        periodStart = utcdate(2021, 4, 1, 10, 0, 0)
+        periodEnd = utcdate(2021, 4, 1, 10, 10, 0)
         self.emulator.backtest(periodStart, periodEnd)
         self.assertEqual(10, len(recorder.candles), "The Recorder should shave seen 10 1-minute candles")
 
         # Test against some known values
         openTimes = (periodStart + i * eop.Interval.MINUTE_1.timedelta() for i in range(10))
-        closes = [58862.22, 58911.0, 58894.03, 58955.12, 58945.23, 58886.39, 58932.13, 58951.38, 58910.0, 58898.31]
+        closes = [58898.33, 58878.2, 58825.56, 58877.91, 58865.95, 58906.99, 58902.88, 58902.9, 58875.87, 58886.18]
 
         for openTime, close, candle in zip(openTimes, closes, recorder.candles):
             self.assertEqual(openTime, candle.openTime, f"OpenTime mismatch for candle {candle},\n{recorder.candles}")
