@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timezone
 from typing import List
 
@@ -8,6 +9,8 @@ import eopsin.model as m
 import eopsin.service as s
 import eopsin.util as util
 from .exchange import ExchangeHandler
+
+_logger = logging.getLogger(__name__)
 
 
 class BinanceHandler(ExchangeHandler):
@@ -99,6 +102,8 @@ class BinanceHandler(ExchangeHandler):
                 raise ValueError(f"Unknown order side: {order.side.name}")
         else:
             raise ValueError(f"Unknown order type: {type(order)}")
+
+        _logger.debug(f'Placing order: {order} returned {info}')
 
         return m.OrderId(pair=order.pair, id=info['orderId'])
 

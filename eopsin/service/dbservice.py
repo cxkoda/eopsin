@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timezone
 from typing import List, Tuple
 
@@ -8,6 +9,8 @@ import sqlalchemy.orm as orm
 import eopsin.model as m
 import eopsin.util as util
 from eopsin.model._sqlbase import Base
+
+_logger = logging.getLogger(__name__)
 
 
 class DBService:
@@ -59,11 +62,13 @@ class DBService:
             self.session.rollback()
 
     def addCandles(self, candles: List[m.Candle]):
+        _logger.debug(f'Adding klines to the db: {candles}')
         for candle in candles:
             self.addCandle(candle)
 
     def findCandles(self, exchange: m.Exchange, pair: m.Pair, interval: m.Interval, periodStart: datetime,
                     periodEnd: datetime) -> List[m.Candle]:
+        _logger.debug(f'Loading klines from the db: {pair} klines ({interval}) {exchange} for the period {periodStart} - {periodEnd}')
         return self.session.query(m.Candle) \
             .filter(sql.and_(m.Candle.exchange_id == exchange.id,
                              m.Candle.pair_id == pair.id,
@@ -75,6 +80,7 @@ class DBService:
     def findMissingCandlePeriods(self, exchange: m.Exchange, pair: m.Pair, interval: m.Interval, periodStart: datetime,
                                  periodEnd: datetime) -> \
             List[Tuple[datetime, datetime]]:
+        _logger.debug(f'Looking for missing klines in the db: {pair} klines ({interval}) {exchange} for the period {periodStart} - {periodEnd}')
         periodStart = util.ceilDatetime(periodStart, interval.timedelta()).astimezone(timezone.utc)
         periodEnd = util.floorDatetime(periodEnd, interval.timedelta()).astimezone(timezone.utc)
         candles = self.session.query(m.Candle) \

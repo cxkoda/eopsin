@@ -1,15 +1,17 @@
 import copy
 import datetime as dt
 import itertools as it
+import logging
 from typing import List, Dict
 
 import eopsin.model as m
 import eopsin.util as util
 from .exchange import ExchangeHandler
 
+_logger = logging.getLogger(__name__)
+
 
 class ExchangeEmulator(ExchangeHandler):
-    name = 'Emulator'
     _exchangeHandler: ExchangeHandler
     _portfolio: Dict[str, float]
 
@@ -29,6 +31,7 @@ class ExchangeEmulator(ExchangeHandler):
         self._now = now.astimezone(dt.timezone.utc)
         self._orders = {}
         self._orderIdGenerator = it.count(1)
+        self.name = f'{exchange.name}-Emulator'
 
     @_Decorators.delegateToExchange
     def _getHistoricalKlinesFromServer(self, pair: m.Pair, interval: m.Interval, periodStart: dt.datetime,

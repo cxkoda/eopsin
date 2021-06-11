@@ -1,3 +1,4 @@
+import logging
 import time
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
@@ -6,6 +7,8 @@ from typing import List, Tuple, Dict
 import eopsin.model as m
 import eopsin.service as s
 import eopsin.util as util
+
+_logger = logging.getLogger(__name__)
 
 
 class NewCandleEvents(util.Events):
@@ -47,15 +50,22 @@ class ExchangeHandler(ABC):
     def _fetchMissingHistoricalKlines(self, pair: m.Pair, interval: m.Interval,
                                       missingPeriods: List[Tuple[datetime, datetime]]) -> None:
         for periodStart, periodEnd, in missingPeriods:
+            _logger.debug(f'Fetching {pair} klines ({interval}) for the period {periodStart} - {periodEnd} from {self.exchange}')
             candles = self._getHistoricalKlinesFromServer(pair, interval, periodStart, periodEnd)
             self.dbservice.addCandles(candles)
 
-    def getHistoricalKlines(self, pair: m.Pair, interval: m.Interval, periodStart: datetime, periodEnd: datetime) -> \
-            List[m.Candle]:
+    def getHistoricalKlines(self, pair: m.Pair, interval: m.Interval, periodStart: datetime, periodEnd: datetime,
+                            attempt: int = 1) -> List[m.Candle]:
+        _logger.debug(f'Getting historical klines: {self.exchange} {pair} ({interval}) from {periodStart} to {periodEnd}')
+        if attempt > 3:
+            _logger.error(
+                f'Max attempts reached while trying to fetch missing historical klines for {pair} from {self.name} for the period {periodStart} - {periodEnd}')
+            raise RuntimeError('Max attempts reached while trying to fetch missing historical klines')
+
         missingPeriods = self.dbservice.findMissingCandlePeriods(self.exchange, pair, interval, periodStart, periodEnd)
         if missingPeriods:
             self._fetchMissingHistoricalKlines(pair, interval, missingPeriods)
-            return self.getHistoricalKlines(pair, interval, periodStart, periodEnd)
+            return self.getHistoricalKlines(pair, interval, periodStart, periodEnd, attempt=attempt + 1)
         else:
             return self.dbservice.findCandles(self.exchange, pair, interval, periodStart, periodEnd)
 
