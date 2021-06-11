@@ -26,7 +26,7 @@ class ExchangeEmulator(ExchangeHandler):
         super().__init__(exchange.dbservice)
         self._exchangeHandler = exchange
         self._portfolio = portfolio
-        self._now = now
+        self._now = now.astimezone(dt.timezone.utc)
         self._orders = {}
         self._orderIdGenerator = it.count(1)
 

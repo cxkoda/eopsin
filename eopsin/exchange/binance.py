@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List
 
 import binance
@@ -31,13 +31,14 @@ class BinanceHandler(ExchangeHandler):
 
     def _getCandleFromData(self, pair: m.Pair, interval: m.Interval, data: list) -> m.Candle:
         candle = m.Candle(exchange=self.exchange, pair=pair, interval=interval,
-                          openTime=datetime.fromtimestamp(data[0] / 1000),  # binance timestamps are given in ms
+                          openTime=datetime.fromtimestamp(data[0] / 1000, tz=timezone.utc),
+                          # binance timestamps are given in ms
                           open=float(data[1]),
                           high=float(data[2]),
                           low=float(data[3]),
                           close=float(data[4]),
                           volume=float(data[5]),
-                          closeTime=datetime.fromtimestamp(data[6] / 1000),
+                          closeTime=datetime.fromtimestamp(data[6] / 1000, tz=timezone.utc),
                           quoteAssetVolume=float(data[7]),
                           numberOfTrades=data[8],
                           takerBuyBaseAssetVolume=float(data[9]),
@@ -48,12 +49,12 @@ class BinanceHandler(ExchangeHandler):
     def getTime(self) -> datetime:
         response = self.client.get_server_time()
         timestamp = float(response['serverTime'])  # timestamp is in milliseconds
-        return datetime.fromtimestamp(timestamp / 1000)
+        return datetime.fromtimestamp(timestamp / 1000, tz=timezone.utc)
 
     def _getHistoricalKlinesFromServer(self, pair: m.Pair, interval: m.Interval, periodStart: datetime,
                                        periodEnd: datetime) -> List[m.Candle]:
-        periodStart = util.ceilDatetime(periodStart, interval.timedelta())
-        periodEnd = util.floorDatetime(periodEnd, interval.timedelta())
+        periodStart = util.ceilDatetime(periodStart, interval.timedelta(), tz=timezone.utc).astimezone(timezone.utc)
+        periodEnd = util.floorDatetime(periodEnd, interval.timedelta(), tz=timezone.utc).astimezone(timezone.utc)
         candles = [self._getCandleFromData(pair, interval, candle) for candle in
                    self.client.get_historical_klines(self._convertPairSymbol(pair),
                                                      self._convertIntervalString(interval),

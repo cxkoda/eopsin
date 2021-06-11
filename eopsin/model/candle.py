@@ -4,6 +4,7 @@ from datetime import timedelta
 import sqlalchemy as sql
 
 from ._sqlbase import Base
+from .timestamp import TimeStamp
 
 
 @enum.unique
@@ -44,8 +45,8 @@ class Candle(Base):
     pair = sql.orm.relationship("Pair")
     interval = sql.Column(sql.Enum(Interval))
 
-    openTime = sql.Column(sql.DateTime)
-    closeTime = sql.Column(sql.DateTime)
+    openTime = sql.Column(TimeStamp)
+    closeTime = sql.Column(TimeStamp)
 
     open = sql.Column(sql.Float)
     high = sql.Column(sql.Float)
