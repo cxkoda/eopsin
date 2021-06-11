@@ -6,6 +6,7 @@ import sqlalchemy as sql
 import eopsin as eop
 
 getDatetime = lambda date: datetime.datetime.strptime(date, '%Y-%m-%d %H:%M:%S').replace(tzinfo=datetime.timezone.utc)
+getLocalDatetime = lambda date: datetime.datetime.strptime(date, '%Y-%m-%d %H:%M:%S')
 
 
 class TestDBService(unittest.TestCase):
@@ -21,6 +22,20 @@ class TestDBService(unittest.TestCase):
         self.assertEqual(binance.id, 1)
         self.assertEqual(binance.name, 'Binance')
         self.assertEqual(self.dbService.getExchange('Binance'), binance, "Binance should be in db")
+
+    def test_addCandleLocalTime(self):
+        binance = self.dbService.addExchange('Binance')
+        pair = self.dbService.getPair('BTC', 'USDT')
+        interval = eop.Interval.MINUTE_1
+        openTime = datetime.datetime(2021, 2, 10, 10, 55, 00)
+        closeTime = datetime.datetime(2021, 2, 10, 10, 56, 00)
+        self.dbService.addCandle(
+            eop.Candle(exchange=binance, pair=pair, interval=interval, openTime=openTime, closeTime=closeTime))
+
+        candles = self.dbService.findCandles(binance, pair, interval, openTime, closeTime)
+        self.assertEqual(1, len(candles), "Should only find one candle")
+        self.assertEqual(openTime.astimezone(datetime.timezone.utc), candles[0].openTime, "Wrong openTime")
+        self.assertEqual(closeTime.astimezone(datetime.timezone.utc), candles[0].closeTime, "Wrong closeTime")
 
     def test_addGetSingleCandle(self):
         binance = self.dbService.addExchange('Binance')
@@ -77,6 +92,29 @@ class TestDBService(unittest.TestCase):
 
         self.assertEqual(1, len(missingPeriods), "Only one candle should be identified")
         self.assertEqual([openTime, closeTime], missingPeriods[0], "Begin and end should match the rounded datetimes")
+
+        # Add missing candle and test again
+        self.dbService.addCandle(
+            eop.Candle(exchange=binance, pair=pair, interval=interval, openTime=openTime, closeTime=closeTime))
+        missingPeriods = self.dbService.findMissingCandlePeriods(binance, pair, eop.Interval.MINUTE_1, openTime,
+                                                                 closeTime)
+        self.assertEqual([], missingPeriods, "the candle should no longer be missing after added.")
+
+    def test_singleMissingCandleLocalTime(self):
+        binance = self.dbService.addExchange('Binance')
+        pair = self.dbService.getPair('BTC', 'USDT')
+        interval = eop.Interval.MINUTE_1
+        openTime = datetime.datetime(2021, 2, 10, 10, 55, 00)
+        closeTime = datetime.datetime(2021, 2, 10, 10, 56, 00)
+
+        missingPeriods = self.dbService.findMissingCandlePeriods(binance, pair, eop.Interval.MINUTE_1, openTime,
+                                                                 closeTime)
+
+        self.assertEqual(1, len(missingPeriods), "Only one candle should be identified")
+        self.assertEqual(openTime.astimezone(datetime.timezone.utc), missingPeriods[0][0],
+                         "The candle's openTime should ne in the missing period list")
+        self.assertEqual(closeTime.astimezone(datetime.timezone.utc), missingPeriods[0][1],
+                         "The candle's closeTime should ne in the missing period list")
 
         # Add missing candle and test again
         self.dbService.addCandle(

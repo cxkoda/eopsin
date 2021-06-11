@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Tuple
 
 import sqlalchemy as sql
@@ -75,8 +75,8 @@ class DBService:
     def findMissingCandlePeriods(self, exchange: m.Exchange, pair: m.Pair, interval: m.Interval, periodStart: datetime,
                                  periodEnd: datetime) -> \
             List[Tuple[datetime, datetime]]:
-        periodStart = util.ceilDatetime(periodStart, interval.timedelta())
-        periodEnd = util.floorDatetime(periodEnd, interval.timedelta())
+        periodStart = util.ceilDatetime(periodStart, interval.timedelta()).astimezone(timezone.utc)
+        periodEnd = util.floorDatetime(periodEnd, interval.timedelta()).astimezone(timezone.utc)
         candles = self.session.query(m.Candle) \
             .filter(sql.and_(m.Candle.exchange_id == exchange.id,
                              m.Candle.pair_id == pair.id,

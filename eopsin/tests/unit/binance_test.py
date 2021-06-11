@@ -104,6 +104,22 @@ class TestBinanceKlines(unittest.TestCase):
         candles = self.binance.getHistoricalKlines(pair, eop.Interval.HOUR_1, PERIOD_START, PERIOD_END)
         self.assertEqual(288, len(candles))
 
+    def test_getKlinesInLocalTime(self):
+        PERIOD_START = datetime.datetime(2021, 1, 2, 0, 0, 0) - datetime.timedelta(seconds=10)
+        PERIOD_END = datetime.datetime(2021, 1, 11, 0, 0, 0)
+        pair = self.dbService.getPair('BTC', 'USDT')
+        candles = self.binance.getHistoricalKlines(pair, eop.Interval.HOUR_1, PERIOD_START, PERIOD_END)
+        self.assertEqual(216, len(candles))
+
+        PERIOD_START = datetime.datetime(2021, 1, 3, 0, 0, 0)
+        PERIOD_END = datetime.datetime(2021, 1, 14, 0, 0, 0)
+        candles = self.binance.getHistoricalKlines(pair, eop.Interval.HOUR_1, PERIOD_START, PERIOD_END)
+        self.assertEqual(264, len(candles))
+
+        PERIOD_START = datetime.datetime(2021, 1, 2, 0, 0, 0)
+        candles = self.binance.getHistoricalKlines(pair, eop.Interval.HOUR_1, PERIOD_START, PERIOD_END)
+        self.assertEqual(288, len(candles))
+
     def test_getSingleKlineFromServer(self):
         pair = self.dbService.getPair('BTC', 'USDT')
         interval = eop.Interval.MINUTE_1
