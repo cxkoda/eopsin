@@ -25,13 +25,13 @@ class ExchangeEmulator(ExchangeHandler):
 
     def __init__(self, exchange: ExchangeHandler, portfolio: Dict[str, float] = {},
                  now: dt.datetime = dt.datetime.now()):
+        self.name = f'{exchange.name}-Emulator'
         super().__init__(exchange.dbservice)
         self._exchangeHandler = exchange
         self._portfolio = portfolio
         self._now = now.astimezone(dt.timezone.utc)
         self._orders = {}
         self._orderIdGenerator = it.count(1)
-        self.name = f'{exchange.name}-Emulator'
 
     @_Decorators.delegateToExchange
     def _getHistoricalKlinesFromServer(self, pair: m.Pair, interval: m.Interval, periodStart: dt.datetime,
