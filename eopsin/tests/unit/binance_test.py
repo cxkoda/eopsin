@@ -43,7 +43,7 @@ class TestBinanceBasic(unittest.TestCase):
         now = datetime.datetime.now().astimezone(datetime.timezone.utc)
         self.assertLess(np.abs((serverTime - now).total_seconds()), 1)
 
-    @timeout_decorator.timeout(70)
+    @timeout_decorator.timeout(seconds=70, use_signals=False)
     def test_minuteTrigger(self):
         class TriggerMinuteOnce:
             def __init__(self):
