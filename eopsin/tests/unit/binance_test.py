@@ -2,11 +2,11 @@ import datetime
 import os
 import unittest
 
+import func_timeout
 import numpy as np
 import sqlalchemy as sql
 
 import eopsin as eop
-from eopsin.tests.unit.timeout import timeout
 
 
 class TestBinanceBasic(unittest.TestCase):
@@ -43,7 +43,7 @@ class TestBinanceBasic(unittest.TestCase):
         now = datetime.datetime.now().astimezone(datetime.timezone.utc)
         self.assertLess(np.abs((serverTime - now).total_seconds()), 1)
 
-    @timeout(seconds=70)
+    @func_timeout.func_set_timeout(70)
     def test_minuteTrigger(self):
         class TriggerMinuteOnce:
             def __init__(self):
