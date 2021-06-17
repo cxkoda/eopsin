@@ -8,7 +8,7 @@ import eopsin.model as m
 import eopsin.service as s
 import eopsin.util as util
 
-_logger = logging.getLogger(__name__)
+_log = logging.getLogger(__name__)
 
 
 class NewCandleEvents(util.Events):
@@ -36,11 +36,13 @@ class ExchangeHandler(ABC):
     dbservice: s.DBService
     exchange: m.Exchange
     events: NewCandleEvents
+    log: logging.Logger
 
     def __init__(self, dbservice: s.DBService):
         self.dbservice = dbservice
         self.exchange = dbservice.getExchange(self.name)
         self.events = NewCandleEvents()
+        self.log = _log.getChild(self.name)
 
     @abstractmethod
     def _getHistoricalKlinesFromServer(self, pair: m.Pair, interval: m.Interval, periodStart: datetime,
@@ -50,15 +52,17 @@ class ExchangeHandler(ABC):
     def _fetchMissingHistoricalKlines(self, pair: m.Pair, interval: m.Interval,
                                       missingPeriods: List[Tuple[datetime, datetime]]) -> None:
         for periodStart, periodEnd, in missingPeriods:
-            _logger.debug(f'Fetching {pair} klines ({interval}) for the period {periodStart} - {periodEnd} from {self.exchange}')
+            self.log.debug(
+                f'Fetching {pair} klines ({interval}) for the period {periodStart} - {periodEnd} from {self.exchange}')
             candles = self._getHistoricalKlinesFromServer(pair, interval, periodStart, periodEnd)
             self.dbservice.addCandles(candles)
 
     def getHistoricalKlines(self, pair: m.Pair, interval: m.Interval, periodStart: datetime, periodEnd: datetime,
                             attempt: int = 1) -> List[m.Candle]:
-        _logger.debug(f'Getting historical klines: {self.exchange} {pair} ({interval}) from {periodStart} to {periodEnd}')
+        self.log.debug(
+            f'Getting historical klines: {self.exchange} {pair} ({interval}) from {periodStart} to {periodEnd}')
         if attempt > 3:
-            _logger.error(
+            self.log.error(
                 f'Max attempts reached while trying to fetch missing historical klines for {pair} from {self.name} for the period {periodStart} - {periodEnd}')
             raise RuntimeError('Max attempts reached while trying to fetch missing historical klines')
 

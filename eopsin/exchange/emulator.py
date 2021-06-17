@@ -1,14 +1,11 @@
 import copy
 import datetime as dt
 import itertools as it
-import logging
 from typing import List, Dict
 
 import eopsin.model as m
 import eopsin.util as util
 from .exchange import ExchangeHandler
-
-_logger = logging.getLogger(__name__)
 
 
 class ExchangeEmulator(ExchangeHandler):
