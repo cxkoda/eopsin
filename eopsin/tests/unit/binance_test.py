@@ -26,17 +26,18 @@ class TestBinanceBasic(unittest.TestCase):
         self.assertEqual(portfolio['ETH'], self.binance.getAssetBalance('ETH'))
 
     def test_marketOrder(self):
-        VOLUME = 1e-3
-
-        before = self.binance.getAssetBalance('BTC')
         pair = self.dbService.getPair('BTC', 'USDT')
-        order = eop.MarketOrder(pair, eop.OrderSide.SELL, VOLUME)
+        order = eop.MarketOrder(pair, eop.OrderSide.SELL, 0.001)
         orderId = self.binance.placeOrder(order)
-        after = self.binance.getAssetBalance('BTC')
-        # This causes a problem in the CI, where multiple orders are made simultaneously.
-        # self.assertAlmostEqual(VOLUME, before - after, 4)
+        self.assertEqual(eop.OrderStatus.FILLED, self.binance.checkOrder(orderId))
+        info = self.binance.getInfo(orderId)
+        self.assertEqual(0.001, info.filledVolume)
 
-        self.assertEqual(self.binance.checkOrder(orderId), eop.OrderStatus.FILLED)
+        order = eop.MarketOrder(pair, eop.OrderSide.BUY, 10, volumeType=eop.VolumeType.CURRENCY)
+        orderId = self.binance.placeOrder(order)
+        self.assertEqual(eop.OrderStatus.FILLED, self.binance.checkOrder(orderId))
+        info = self.binance.getInfo(orderId)
+        self.assertAlmostEqual(9.99, info.filledCurrencyVolume, delta=0.02)
 
     def test_serverTime(self):
         serverTime = self.binance.getTime()

@@ -1,4 +1,7 @@
+import datetime
 import enum
+import typing
+from dataclasses import dataclass
 
 from .pair import Pair
 
@@ -20,16 +23,10 @@ class OrderStatus(enum.Enum):
     EXPIRED = 7
 
 
+@dataclass
 class OrderId:
     pair: Pair
     id: int
-
-    def __init__(self, pair: Pair, id: int):
-        self.pair = pair
-        self.id = id
-
-    def __repr__(self):
-        return f'<OrderId(pair={self.pair}, id={self.id}>'
 
 
 class Order:
@@ -37,23 +34,49 @@ class Order:
     status: OrderStatus
 
 
+@dataclass
+class OrderInfo:
+    pair: Pair = None
+    orderId: int = None
+    time: datetime.datetime = None
+    orderedVolume: float = None
+    filledVolume: float = None
+    filledCurrencyVolume: float = None
+    status: OrderStatus = None
+    type: str = None
+    side: OrderSide = None
+
+
+@enum.unique
+class VolumeType(enum.Enum):
+    ASSET = 1
+    CURRENCY = 2
+
+
 class MarketOrder(Order):
     side: OrderSide
     volume: float
 
-    def __init__(self, pair: Pair, side: OrderSide, volume: float, status: OrderStatus = OrderStatus.NEW):
+    def __init__(self, pair: Pair, side: OrderSide, volume: float, status: OrderStatus = OrderStatus.NEW,
+                 volumeType: VolumeType = VolumeType.ASSET):
         self.pair = pair
         self.side = side
         self.volume = volume
         self.status = status
+        self.volumeType = volumeType
 
     @classmethod
-    def newSell(cls, pair: Pair, volume: float):
-        return cls(pair, OrderSide.SELL, volume)
+    def newSell(cls, pair: Pair, volume: float, volumeType: VolumeType = VolumeType.ASSET):
+        return cls(pair, OrderSide.SELL, volume, volumeType=volumeType)
 
     @classmethod
-    def newBuy(cls, pair: Pair, volume: float):
-        return cls(pair, OrderSide.BUY, volume)
+    def newBuy(cls, pair: Pair, volume: float, volumeType: VolumeType = VolumeType.ASSET):
+        return cls(pair, OrderSide.BUY, volume, volumeType=volumeType)
+
+    def __repr__(self):
+        return f'<MarketOrder({self.pair}, {self.side}, {self.volume}, {self.volumeType})>'
+
+    __str__ = __repr__
 
 
 class LimitOrder(Order):

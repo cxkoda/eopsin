@@ -63,22 +63,34 @@ class ExchangeEmulator(ExchangeHandler):
 
     def _processMarketOrder(self, order: m.MarketOrder) -> None:
         currentCourse = self.getCurrentCourse(order.pair)
+
+        if order.volumeType == order.volumeType.ASSET:
+            assetVolume = order.volume
+            currencyVolume = order.volume * currentCourse
+        else:
+            assetVolume = order.volume / currentCourse
+            currencyVolume = order.volume
+
         if order.side is m.OrderSide.SELL:
-            if order.volume > self.getAssetBalance(order.pair.asset):
+            balance = self.getAssetBalance(order.pair.asset)
+
+            if assetVolume > balance:
                 order.status = m.OrderStatus.REJECTED
+                self.log.warning(
+                    f'Rejecting order {order}: Not enough asset ({order.pair.asset}) - need: {assetVolume} but available: {balance}')
             else:
-                assetValue = currentCourse * order.volume
-                self._portfolio[order.pair.asset] -= order.volume
-                self._portfolio[order.pair.currency] += assetValue
+                self._portfolio[order.pair.asset] -= assetVolume
+                self._portfolio[order.pair.currency] += currencyVolume
                 order.status = m.OrderStatus.FILLED
         elif order.side is m.OrderSide.BUY:
-            assetValue = currentCourse * order.volume
-            if assetValue > self.getAssetBalance(order.pair.currency):
+            balance = self.getAssetBalance(order.pair.currency)
+            if currencyVolume > balance:
                 order.status = m.OrderStatus.REJECTED
+                self.log.warning(
+                    f'Rejecting order {order}: Not enough currency ({order.pair.currency}) - need: {currencyVolume} but available: {balance}')
             else:
-                assetValue = currentCourse * order.volume
-                self._portfolio[order.pair.asset] += order.volume
-                self._portfolio[order.pair.currency] -= assetValue
+                self._portfolio[order.pair.asset] += assetVolume
+                self._portfolio[order.pair.currency] -= currencyVolume
                 order.status = m.OrderStatus.FILLED
 
     def placeOrder(self, order: m.Order) -> m.OrderId:

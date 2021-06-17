@@ -29,16 +29,19 @@ class BinanceHandler(ExchangeHandler):
     def _convertDate(self, date: datetime) -> int:
         return int(date.timestamp() * 1000)  # in milliseconds
 
+    def _convertTimestamp(self, timestamp: int) -> datetime:
+        # binance timestamps are given in ms
+        return datetime.fromtimestamp(timestamp / 1000, tz=timezone.utc)
+
     def _getCandleFromData(self, pair: m.Pair, interval: m.Interval, data: list) -> m.Candle:
         candle = m.Candle(exchange=self.exchange, pair=pair, interval=interval,
-                          openTime=datetime.fromtimestamp(data[0] / 1000, tz=timezone.utc),
-                          # binance timestamps are given in ms
+                          openTime=self._convertTimestamp(data[0]),
                           open=float(data[1]),
                           high=float(data[2]),
                           low=float(data[3]),
                           close=float(data[4]),
                           volume=float(data[5]),
-                          closeTime=datetime.fromtimestamp(data[6] / 1000, tz=timezone.utc),
+                          closeTime=self._convertTimestamp(data[6]),
                           quoteAssetVolume=float(data[7]),
                           numberOfTrades=data[8],
                           takerBuyBaseAssetVolume=float(data[9]),
@@ -77,7 +80,26 @@ class BinanceHandler(ExchangeHandler):
         portfolio = {entry['asset']: float(entry['free']) for entry in info['balances']}
         return portfolio
 
-    def placeOrder(self, order: m.Order):
+    def _processMarketOrder(self, order: m.MarketOrder) -> dict:
+        getStr = lambda flt: np.format_float_positional(flt, trim='-')
+
+        data = {}
+        data['symbol'] = self._convertPairSymbol(order.pair)
+        if order.volumeType == order.volumeType.ASSET:
+            data['quantity'] = getStr(order.volume)
+        else:
+            data['quoteOrderQty'] = getStr(order.volume)
+
+        if order.side is m.OrderSide.SELL:
+            info = self.client.order_market_sell(**data)
+        elif order.side is m.OrderSide.BUY:
+            info = self.client.order_market_buy(**data)
+        else:
+            raise ValueError(f"Unknown order side: {order.side.name}")
+
+        return info
+
+    def placeOrder(self, order: m.Order) -> m.OrderId:
         symbol = self._convertPairSymbol(order.pair)
         getStr = lambda flt: np.format_float_positional(flt, trim='-')
 
@@ -91,12 +113,7 @@ class BinanceHandler(ExchangeHandler):
             else:
                 raise ValueError(f"Unknown order side: {order.side.name}")
         elif isinstance(order, m.MarketOrder):
-            if order.side is m.OrderSide.SELL:
-                info = self.client.order_market_sell(symbol=symbol, quantity=getStr(order.volume))
-            elif order.side is m.OrderSide.BUY:
-                info = self.client.order_market_buy(symbol=symbol, quantity=getStr(order.volume))
-            else:
-                raise ValueError(f"Unknown order side: {order.side.name}")
+            info = self._processMarketOrder(order)
         else:
             raise ValueError(f"Unknown order type: {type(order)}")
 
@@ -104,10 +121,23 @@ class BinanceHandler(ExchangeHandler):
 
         return m.OrderId(pair=order.pair, id=info['orderId'])
 
-    def checkOrder(self, orderId: m.OrderId):
+    def checkOrder(self, orderId: m.OrderId) -> m.OrderStatus:
         response = self.client.get_order(symbol=self._convertPairSymbol(orderId.pair), orderId=str(orderId.id))
         status = response['status']
         return m.OrderStatus[status]
+
+    def getInfo(self, orderId: m.OrderId) -> m.OrderInfo:
+        res = self.client.get_order(symbol=self._convertPairSymbol(orderId.pair), orderId=str(orderId.id))
+        info = m.OrderInfo(pair=orderId.pair, orderId=res['orderId'],
+                           time=self._convertTimestamp(res['time']),
+                           orderedVolume=float(res['origQty']),
+                           filledVolume=float(res['executedQty']),
+                           filledCurrencyVolume=float(res['cummulativeQuoteQty']),
+                           status=m.OrderStatus[res['status']],
+                           type=res['type'],
+                           side=m.OrderSide[res['side']],
+                           )
+        return info
 
     def cancelOrder(self, orderId: m.OrderId):
         pass

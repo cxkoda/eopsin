@@ -45,9 +45,15 @@ class TestBinanceEmulator(unittest.TestCase):
         order = eop.MarketOrder.newSell(pair, 30)
         orderId = self.emulator.placeOrder(order)
 
-        self.assertEqual(self.emulator.checkOrder(orderId), eop.OrderStatus.FILLED)
+        self.assertEqual(eop.OrderStatus.FILLED, self.emulator.checkOrder(orderId))
         self.assertEqual(70, self.emulator.getAssetBalance('BTC'))
         self.assertGreater(self.emulator.getAssetBalance('USDT'), 0)
+
+        balance = self.emulator.getAssetBalance('USDT')
+        order = eop.MarketOrder.newBuy(pair, balance, eop.VolumeType.CURRENCY)
+        orderId = self.emulator.placeOrder(order)
+        self.assertEqual(eop.OrderStatus.FILLED, self.emulator.checkOrder(orderId))
+        self.assertAlmostEqual(100, self.emulator.getAssetBalance('BTC'), delta=0.1)
 
 
 class CourseRecorder(eop.Strategy):
