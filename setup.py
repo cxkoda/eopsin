@@ -26,5 +26,5 @@ setuptools.setup(
         'numpy>=1.19.5',
         'python-binance>=1.0.10'
     ],
-    python_requires='>=3.6',
+    python_requires='>=3.7',
 )
